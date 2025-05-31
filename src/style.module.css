@@ -24,6 +24,7 @@ tr.expired {
   justify-content: end;
   gap: 10px;
   align-items: center;
+  margin-bottom: 10px;
 }
 
 .btn {

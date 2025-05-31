@@ -11,6 +11,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const [claim, setClaim] = createSignal(false)
   const [claimType, setClaimType] = createSignal('key')
   const [exporting, setExporting] = createSignal(false)
+  const [separator, setSeparator] = createSignal(',')
 
   const exportASF = (products: Product[]) => {
     const keys = products
@@ -40,11 +41,11 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
     const header = Object.keys(products[0])
     const csv = products
       .map((product) => {
-        return header.map((h) => product[h]).join(',')
+        return header.map((h) => product[h]).join(separator())
       })
       .join('\n')
 
-    navigator.clipboard.writeText(header + '\n' + csv)
+    navigator.clipboard.writeText(header.join(separator()) + '\n' + csv)
   }
 
   const exportToClipboard = async () => {
@@ -83,61 +84,77 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   }
 
   return (
-    <div class={styles.actions}>
-      <label for="claim">
-        <input
-          type="checkbox"
-          id="claim"
-          name="claim"
-          onChange={(e) => setClaim(e.target.checked)}
-        />
-        Claim unredeemed games
-      </label>
-      <select
-        name="claimType"
-        id="claimType"
-        class={styles.select}
-        classList={{ hidden: !claim() }}
-        onChange={(e) => setClaimType(e.target.value)}
-      >
-        <option value="" disabled>
-          What to claim
-        </option>
-        <option value="key" selected>
-          Key
-        </option>
-        <option value="gift">Gift link</option>
-      </select>
-      <label for="filtered">
-        <input
-          type="checkbox"
-          id="filtered"
-          name="filtered"
-          onChange={(e) => setFiltered(e.target.checked)}
-        />
-        Use table filter
-      </label>
-      <select
-        name="export"
-        id="export"
-        class={styles.select}
-        onChange={(e) => setExportType(e.target.value)}
-      >
-        <option value="" disabled selected>
-          Export format
-        </option>
-        <option value="asf">ASF</option>
-        <option value="keys">Keys</option>
-        <option value="csv">CSV</option>
-      </select>
-      <button
-        type="button"
-        class="primary-button"
-        onClick={exportToClipboard}
-        disabled={!exportType() || exporting()}
-      >
-        {exporting() ? <i class="hb hb-spin hb-spinner"></i> : 'Export'}
-      </button>
-    </div>
+    <>
+      <div class={styles.actions}>
+        <label for="separator">
+          CSV Separator&nbsp;
+          <input
+            type="text"
+            name="separator"
+            id="separator"
+            value=","
+            onInput={(e) => setSeparator(e.target.value)}
+            style={{ width: '5ch', 'text-align': 'center' }}
+            required
+          />
+        </label>
+      </div>
+      <div class={styles.actions}>
+        <label for="claim">
+          <input
+            type="checkbox"
+            id="claim"
+            name="claim"
+            onChange={(e) => setClaim(e.target.checked)}
+          />
+          Claim unredeemed games
+        </label>
+        <select
+          name="claimType"
+          id="claimType"
+          class={styles.select}
+          classList={{ hidden: !claim() }}
+          onChange={(e) => setClaimType(e.target.value)}
+        >
+          <option value="" disabled>
+            What to claim
+          </option>
+          <option value="key" selected>
+            Key
+          </option>
+          <option value="gift">Gift link</option>
+        </select>
+        <label for="filtered">
+          <input
+            type="checkbox"
+            id="filtered"
+            name="filtered"
+            onChange={(e) => setFiltered(e.target.checked)}
+          />
+          Use table filter
+        </label>
+        <select
+          name="export"
+          id="export"
+          class={styles.select}
+          onChange={(e) => setExportType(e.target.value)}
+        >
+          <option value="" disabled selected>
+            Export format
+          </option>
+          <option value="asf">ASF</option>
+          <option value="keys">Keys</option>
+          <option value="csv">CSV</option>
+        </select>
+        <button
+          type="button"
+          class="primary-button"
+          onClick={exportToClipboard}
+          disabled={!exportType() || exporting()}
+        >
+          {exporting() ? <i class="hb hb-spin hb-spinner"></i> : 'Export'}
+        </button>
+      </div>
+    </>
   )
 }
