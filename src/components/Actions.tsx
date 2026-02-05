@@ -22,7 +22,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
           !product.is_expired &&
           product.key_type === 'steam'
       )
-      .map((product) => `${product.redeemed_key_val}\t${product.human_name}`)
+      .map((product) => `${product.human_name}\t${product.redeemed_key_val}`)
       .join('\n')
 
     navigator.clipboard.writeText(keys)
