@@ -44,12 +44,20 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
       .join('\n')
   }
 
+  const csvEscape = (value: unknown) => {
+    const str = String(value ?? '')
+    if (str.includes(separator()) || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+
   const exportCSV = (products: Product[]) => {
     const filtered = products.filter((product) => !product.key_type.endsWith('_keyless'))
     const header = Object.keys(filtered[0])
     const csv = filtered
       .map((product) => {
-        return header.map((h) => product[h]).join(separator())
+        return header.map((h) => csvEscape(product[h])).join(separator())
       })
       .join('\n')
 
