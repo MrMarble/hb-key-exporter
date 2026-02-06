@@ -45,8 +45,9 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   }
 
   const exportCSV = (products: Product[]) => {
-    const header = Object.keys(products[0])
-    const csv = products
+    const filtered = products.filter((product) => !product.key_type.endsWith('_keyless'))
+    const header = Object.keys(filtered[0])
+    const csv = filtered
       .map((product) => {
         return header.map((h) => product[h]).join(separator())
       })
@@ -82,7 +83,10 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
 
     if (claim()) {
       const toClaim = toExport.filter(
-        (p) => !p.redeemed_key_val && !failedRedemptions.has(productKey(p))
+        (p) =>
+          !p.redeemed_key_val &&
+          !p.key_type.endsWith('_keyless') &&
+          !failedRedemptions.has(productKey(p))
       )
       skipped = toExport.filter(
         (p) => !p.redeemed_key_val && failedRedemptions.has(productKey(p))
