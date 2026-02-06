@@ -30,6 +30,15 @@ Userscript to assist in key management for Humble Bundle games.
 
 Go to Humble Bundle [keys page](https://www.humblebundle.com/home/keys), open the collapsible menu by clicking on the `Advanced Exporter` at the top of the main section.
 
+### Build
+
+To build the userscript locally, make sure you have [pnpm](https://pnpm.io/) installed, then run:
+
+```bash
+pnpm install
+pnpm build
+```
+
 ## Troubleshooting
 
 Humble bundle will load all your keys into the `localStorage` of your browser. This userscript will read the keys from there. If you have a lot of keys, it may take a while to load them all the first time, leave the page open for a minute or two, you can refresh the list by clicking the `Refresh` button on the right or just reload the page.
