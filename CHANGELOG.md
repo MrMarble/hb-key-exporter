@@ -1,3 +1,8 @@
+# [0.4.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.0...v0.4.1) (2026-02-05)
+
+### Bug Fixes
+* Fixed ASF export output format by @Knight1 in #6
+
 # [0.4.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.3.0...v0.4.0) (2025-05-31)
 
 
