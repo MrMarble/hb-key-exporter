@@ -1,5 +1,6 @@
 import { createSignal, type Accessor } from 'solid-js'
 import { copyToClipboard, redeem, RedeemError, type Product } from '../util'
+import { processAllChoices } from '../choices'
 import { showToast } from '@violentmonkey/ui'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
@@ -99,11 +100,33 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
       skipped = toExport.filter(
         (p) => !p.redeemed_key_val && failedRedemptions.has(productKey(p))
       ).length
+
+      // Process all Choice orders (choosecontent + redeemkey)
+      const isChoice = (p: Product) =>
+        p.category === 'Choice' || p.category_human_name.toLowerCase().includes('choice')
+
+      if (toClaim.some(isChoice)) {
+        const results = await processAllChoices(setProgressText)
+        for (const r of results) {
+          if (r.key) {
+            const product = toExport.find((p) => p.machine_name === r.machine_name && isChoice(p))
+            if (product && !product.redeemed_key_val) {
+              product.redeemed_key_val = r.key
+            }
+            redeemed++
+          } else if (r.error) {
+            failed++
+          }
+        }
+      }
+
+      // Claim remaining non-Choice products
+      const nonChoiceToClaim = toClaim.filter((p) => !isChoice(p))
       let processed = 0
 
-      for (const product of toClaim) {
+      for (const product of nonChoiceToClaim) {
         processed++
-        setProgressText(`Claiming ${processed}/${toClaim.length}`)
+        setProgressText(`Claiming ${processed}/${nonChoiceToClaim.length}`)
         try {
           product.redeemed_key_val = await redeem(product, claimType() === 'gift')
           redeemed++

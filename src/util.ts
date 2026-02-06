@@ -57,6 +57,9 @@ const getCategory = (category: Order['product']['category']): Product['category'
   }
 }
 
+export const countOrders = () =>
+  Object.keys(localStorage).filter((key) => key.startsWith('v2|')).length
+
 export const loadOrders = () =>
   Object.keys(localStorage)
     .filter((key) => key.startsWith('v2|'))
