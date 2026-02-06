@@ -1,6 +1,6 @@
 {
   "name": "hb-key-exporter",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Userscript that aids in exporting Humble Bundle keys from the Humble Bundle website.",
   "type": "module",
   "private": true,
