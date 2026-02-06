@@ -166,12 +166,13 @@ export const processChoice = async (
   // Skip games that previously failed (e.g. keys depleted)
   gameIds = gameIds.filter((id) => !failedChoiceGames.has(`${gamekey}:${id}`))
 
-  // Only send games not yet chosen that have steam keys to choosecontent
+  // Only send games not yet chosen that have redeemable keys to choosecontent
   const unchosenIds = gameIds.filter(
     (id) =>
       !alreadyChosen.has(id) &&
       game_data[id].tpkds.some(
-        (t) => t.key_type === 'steam' && !t.redeemed_key_val && !t.is_expired && !t.sold_out
+        (t) =>
+          !t.key_type.endsWith('_keyless') && !t.redeemed_key_val && !t.is_expired && !t.sold_out
       )
   )
 
@@ -196,7 +197,7 @@ export const processChoice = async (
         continue
       }
 
-      if (tpkd.key_type !== 'steam') continue
+      if (tpkd.key_type.endsWith('_keyless')) continue
 
       if (tpkd.is_expired || tpkd.sold_out) {
         results.push({
