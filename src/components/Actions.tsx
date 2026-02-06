@@ -54,6 +54,10 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
 
   const exportCSV = (products: Product[]) => {
     const filtered = products.filter((product) => !product.key_type.endsWith('_keyless'))
+    if (filtered.length === 0) {
+    	showToast('There are no keys to export')
+    	return ''
+    }
     const header = Object.keys(filtered[0])
     const csv = filtered
       .map((product) => {
