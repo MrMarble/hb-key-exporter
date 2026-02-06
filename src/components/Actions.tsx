@@ -36,7 +36,10 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
 
   const exportKeys = (products: Product[]) => {
     return products
-      .filter((product) => !product.is_gift && product.redeemed_key_val)
+      .filter(
+        (product) =>
+          !product.is_gift && product.redeemed_key_val && !product.key_type.endsWith('_keyless')
+      )
       .map((product) => product.redeemed_key_val)
       .join('\n')
   }
