@@ -14,7 +14,7 @@ Userscript to assist in key management for Humble Bundle games.
 - Advanced filtering options
 - Export in various formats:
   - CSV (all data)
-  - ASF (`<key> <name>`)
+  - ASF (`<name> <key>`)
   - TXT (`<key>`)
 - Reveal hidden keys
 - Create Gift links
