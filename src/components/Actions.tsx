@@ -94,6 +94,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
       const toClaim = toExport.filter(
         (p) =>
           !p.redeemed_key_val &&
+          !p.is_expired &&
           !p.key_type.endsWith('_keyless') &&
           !failedRedemptions.has(productKey(p))
       )
