@@ -1,9 +1,15 @@
 import { createSignal, type Accessor } from 'solid-js'
-import { redeem, type Product } from '../util'
+import { copyToClipboard, redeem, RedeemError, type Product } from '../util'
 import { showToast } from '@violentmonkey/ui'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
 import type { Api } from 'datatables.net-dt'
+
+// Track products that permanently failed redemption so they aren't retried
+const failedRedemptions = new Set<string>()
+
+const productKey = (p: Pick<Product, 'machine_name' | 'category_id'>) =>
+  `${p.category_id}:${p.machine_name}`
 
 export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const [exportType, setExportType] = createSignal('')
@@ -12,9 +18,11 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const [claimType, setClaimType] = createSignal('key')
   const [exporting, setExporting] = createSignal(false)
   const [separator, setSeparator] = createSignal(',')
+  const [pendingCopy, setPendingCopy] = createSignal('')
+  const [progressText, setProgressText] = createSignal('')
 
-  const exportASF = (products: Product[]) => {
-    const keys = products
+  const exportASF = (products: Product[]) =>
+    products
       .filter(
         (product) =>
           !product.is_gift &&
@@ -25,62 +33,125 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
       .map((product) => `${product.human_name}\t${product.redeemed_key_val}`)
       .join('\n')
 
-    navigator.clipboard.writeText(keys)
-  }
-
-  const exportKeys = (products: Product[]) => {
-    const keys = products
-      .filter((product) => !product.is_gift && product.redeemed_key_val)
+  const exportKeys = (products: Product[]) =>
+    products
+      .filter(
+        (product) =>
+          !product.is_gift && product.redeemed_key_val && !product.key_type.endsWith('_keyless')
+      )
       .map((product) => product.redeemed_key_val)
       .join('\n')
 
-    navigator.clipboard.writeText(keys)
+  const csvEscape = (value: unknown) => {
+    const str = String(value ?? '')
+    if (str.includes(separator()) || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
   }
 
   const exportCSV = (products: Product[]) => {
-    const header = Object.keys(products[0])
-    const csv = products
+    const filtered = products.filter((product) => !product.key_type.endsWith('_keyless'))
+    if (filtered.length === 0) {
+      showToast('There are no keys to export')
+      return ''
+    }
+    const header = Object.keys(filtered[0])
+    const csv = filtered
       .map((product) => {
-        return header.map((h) => product[h]).join(separator())
+        return header.map((h) => csvEscape(product[h])).join(separator())
       })
       .join('\n')
 
-    navigator.clipboard.writeText(header.join(separator()) + '\n' + csv)
+    return header.join(separator()) + '\n' + csv
   }
 
   const exportToClipboard = async () => {
+    // If there's a pending copy from a previous failed clipboard write,
+    // copy it immediately (within user gesture) and return
+    const cached = pendingCopy()
+    if (cached) {
+      const ok = await copyToClipboard(cached)
+      if (ok) {
+        setPendingCopy('')
+        showToast('Exported to clipboard')
+      } else {
+        showToast('Clipboard write failed. Please try again.')
+      }
+      return
+    }
+
     setExporting(true)
     const toExport = dt()
       .rows({ search: filtered() ? 'applied' : 'none' })
       .data()
       .toArray() as Product[]
 
+    let redeemed = 0
+    let failed = 0
+    let skipped = 0
+
     if (claim()) {
-      for (const product of toExport) {
-        if (product.redeemed_key_val) {
-          continue
-        }
+      const toClaim = toExport.filter(
+        (p) =>
+          !p.redeemed_key_val &&
+          !p.key_type.endsWith('_keyless') &&
+          !failedRedemptions.has(productKey(p))
+      )
+      skipped = toExport.filter(
+        (p) => !p.redeemed_key_val && failedRedemptions.has(productKey(p))
+      ).length
+      let processed = 0
+
+      for (const product of toClaim) {
+        processed++
+        setProgressText(`Claiming ${processed}/${toClaim.length}`)
         try {
           product.redeemed_key_val = await redeem(product, claimType() === 'gift')
+          redeemed++
         } catch (e) {
           console.error('Error redeeming product:', product.machine_name, e)
+          failed++
+          if (e instanceof RedeemError && e.permanent) {
+            failedRedemptions.add(productKey(product))
+          }
         }
       }
     }
 
+    setProgressText('Copying to clipboard...')
+
+    let text = ''
     switch (exportType()) {
       case 'asf':
-        exportASF(toExport)
+        text = exportASF(toExport)
         break
       case 'keys':
-        exportKeys(toExport)
+        text = exportKeys(toExport)
         break
       case 'csv':
-        exportCSV(toExport)
+        text = exportCSV(toExport)
         break
     }
+
+    const ok = await copyToClipboard(text)
     setExporting(false)
-    showToast('Exported to clipboard')
+    setProgressText('')
+
+    if (!ok) {
+      setPendingCopy(text)
+      const { close } = showToast('Clipboard blocked. Click "Copy to clipboard" to retry.', {
+        duration: 0,
+      })
+      document.addEventListener('click', () => close(), { once: true })
+      return
+    }
+
+    if (claim() && (failed > 0 || skipped > 0)) {
+      showToast(`Exported to clipboard (${redeemed} claimed, ${failed} failed, ${skipped} skipped)`)
+    } else {
+      showToast('Exported to clipboard')
+    }
   }
 
   return (
@@ -152,7 +223,15 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
           onClick={exportToClipboard}
           disabled={!exportType() || exporting()}
         >
-          {exporting() ? <i class="hb hb-spin hb-spinner"></i> : 'Export'}
+          {exporting() ? (
+            <>
+              <i class="hb hb-spin hb-spinner"></i> {progressText()}
+            </>
+          ) : pendingCopy() ? (
+            'Copy to clipboard'
+          ) : (
+            'Export'
+          )}
         </button>
       </div>
     </>

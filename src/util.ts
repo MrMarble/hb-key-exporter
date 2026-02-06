@@ -100,7 +100,29 @@ export const redeem = async (
   }).then((res) => res.json())
   console.log('Redeem response:', data)
 
+  if (data.success === false) {
+    throw new RedeemError(data.error_msg || 'Unknown error', data.redeem_retryable === false)
+  }
+
   return gift ? `https://www.humblebundle.com/gift?key=${data.giftkey}` : (data.key as string)
+}
+
+export class RedeemError extends Error {
+  permanent: boolean
+  constructor(message: string, permanent: boolean) {
+    super(message)
+    this.name = 'RedeemError'
+    this.permanent = permanent
+  }
+}
+
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 const fetchOwnedApps = async (): Promise<Array<number>> =>

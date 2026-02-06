@@ -1,5 +1,5 @@
 import { onMount, type Setter } from 'solid-js'
-import { redeem, type Product } from '../util'
+import { copyToClipboard, redeem, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
@@ -93,8 +93,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         title: 'Copy to clipboard',
                         type: 'button',
                         onclick: () => {
-                          navigator.clipboard.writeText(row.redeemed_key_val)
-                          showToast('Copied to clipboard')
+                          copyToClipboard(row.redeemed_key_val).then(() =>
+                            showToast('Copied to clipboard')
+                          )
                         },
                       },
                       hm('i', { class: 'hb hb-key hb-clipboard' })
@@ -143,7 +144,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         type: 'button',
                         onclick: () => {
                           redeem(row)
-                            .then((data) => navigator.clipboard.writeText(data))
+                            .then((data) => copyToClipboard(data))
                             .then(() => showToast('Key copied to clipboard'))
                         },
                       },
@@ -156,7 +157,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         type: 'button',
                         onclick: () => {
                           redeem(row, true)
-                            .then((link) => navigator.clipboard.writeText(link))
+                            .then((link) => copyToClipboard(link))
                             .then(() => showToast('Link copied to clipboard'))
                         },
                       },
