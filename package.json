@@ -17,8 +17,7 @@
     "ci": "run-s lint",
     "build:js": "rollup -c",
     "build": "cross-env NODE_ENV=production run-s ci clean build:js",
-    "changelog": "changelogen",
-    "version": "changelogen && git add CHANGELOG.md"
+    "changelog": "changelogen"
   },
   "author": {
     "name": "MrMarble"
