@@ -1,7 +1,27 @@
+# [0.5.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.5.0) (TBD)
+
+### Features
+
+* Track permanent errors (for now expired keys) and do not try to redeem those keys again since it will fail again
+* Add build instructions to README
+* If the clipboard is blocked the code now caches the export and shows a button to export again which unlocks the clipboard
+* CSV is now properly escaped if a game's human_name contains "," which breaks the csv
+
+### Changed
+
+* Updated CI with matrix and latest node versions
+* Changed Changelog generator to changelogen since the old one contained a dependency with a known vulnerability
+* Updated all dependencies
+* Do not export keyless keys into keys and csv
+* Do not redeem keyless keys since this tool is for exporting keys and keyless means no keys to export
+
+by @Knight1
+
 # [0.4.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.0...v0.4.1) (2026-02-05)
 
 ### Bug Fixes
-Fixed ASF export output format by @Knight1 in #6
+
+* Fixed ASF export output format by @Knight1 in #6
 
 
 # [0.4.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.3.0...v0.4.0) (2025-05-31)
@@ -9,7 +29,7 @@ Fixed ASF export output format by @Knight1 in #6
 
 ### Features
 
-* **cvs:** allow setting a custom separator ([#2](https://github.com/MrMarble/hb-key-exporter/issues/2)) ([30aaff5](https://github.com/MrMarble/hb-key-exporter/commit/30aaff5848797c15c40e6e55599412c366049324))
+* **csv:** allow setting a custom separator ([#2](https://github.com/MrMarble/hb-key-exporter/issues/2)) ([30aaff5](https://github.com/MrMarble/hb-key-exporter/commit/30aaff5848797c15c40e6e55599412c366049324))
 
 
 
@@ -18,7 +38,7 @@ Fixed ASF export output format by @Knight1 in #6
 
 ### Bug Fixes
 
-* set container to max with ([b1404bd](https://github.com/MrMarble/hb-key-exporter/commit/b1404bd41b4b6d234789abfba237211153ceb4a1))
+* set container to max width ([b1404bd](https://github.com/MrMarble/hb-key-exporter/commit/b1404bd41b4b6d234789abfba237211153ceb4a1))
 
 
 ### Features
@@ -57,7 +77,7 @@ Fixed ASF export output format by @Knight1 in #6
 
 ### Features
 
-* add uptate urls to meta ([6068fbf](https://github.com/MrMarble/hb-key-exporter/commit/6068fbfb6911a91b9a2caa41850d26d0b7fad948))
+* add update urls to meta ([6068fbf](https://github.com/MrMarble/hb-key-exporter/commit/6068fbfb6911a91b9a2caa41850d26d0b7fad948))
 
 
 
