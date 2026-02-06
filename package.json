@@ -17,7 +17,8 @@
     "ci": "run-s lint",
     "build:js": "rollup -c",
     "build": "cross-env NODE_ENV=production run-s ci clean build:js",
-    "version": "conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md"
+    "changelog": "changelogen",
+    "version": "changelogen && git add CHANGELOG.md"
   },
   "author": {
     "name": "MrMarble"
@@ -35,7 +36,7 @@
     "@rollup/plugin-replace": "^6.0.3",
     "@violentmonkey/types": "^0.3.2",
     "babel-preset-solid": "^1.9.10",
-    "conventional-changelog-cli": "^5.0.0",
+    "changelogen": "^0.6.2",
     "cross-env": "^10.1.0",
     "datatables.net-dt": "^2.3.7",
     "del-cli": "^7.0.0",
