@@ -21,8 +21,8 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const [pendingCopy, setPendingCopy] = createSignal('')
   const [progressText, setProgressText] = createSignal('')
 
-  const exportASF = (products: Product[]) => {
-    return products
+  const exportASF = (products: Product[]) =>
+    products
       .filter(
         (product) =>
           !product.is_gift &&
@@ -32,17 +32,15 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
       )
       .map((product) => `${product.human_name}\t${product.redeemed_key_val}`)
       .join('\n')
-  }
 
-  const exportKeys = (products: Product[]) => {
-    return products
+  const exportKeys = (products: Product[]) =>
+    products
       .filter(
         (product) =>
           !product.is_gift && product.redeemed_key_val && !product.key_type.endsWith('_keyless')
       )
       .map((product) => product.redeemed_key_val)
       .join('\n')
-  }
 
   const csvEscape = (value: unknown) => {
     const str = String(value ?? '')
@@ -55,8 +53,8 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const exportCSV = (products: Product[]) => {
     const filtered = products.filter((product) => !product.key_type.endsWith('_keyless'))
     if (filtered.length === 0) {
-    	showToast('There are no keys to export')
-    	return ''
+      showToast('There are no keys to export')
+      return ''
     }
     const header = Object.keys(filtered[0])
     const csv = filtered
