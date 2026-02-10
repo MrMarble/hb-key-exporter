@@ -38,6 +38,9 @@ export interface Product {
   is_gift: boolean
   is_expired: boolean
   owned: 'Yes' | 'No' | '-'
+  region_lock: string
+  exclusive_countries: string[]
+  disallowed_countries: string[]
   expiry_date?: string
   steam_app_id?: number
   created: string
@@ -56,6 +59,15 @@ const getCategory = (category: Order['product']['category']): Product['category'
       return 'Other'
   }
 }
+
+const formatRegionLock = (exclusive?: string[], disallowed?: string[]): string => {
+  if (exclusive?.length) return `Only: ${exclusive.length} Countries`
+  if (disallowed?.length) return `Not: ${disallowed.length} Countries`
+  return 'No'
+}
+
+export const countOrders = () =>
+  Object.keys(localStorage).filter((key) => key.startsWith('v2|')).length
 
 export const loadOrders = () =>
   Object.keys(localStorage)
@@ -76,6 +88,9 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
       redeemed_key_val: product.redeemed_key_val || '',
       is_gift: product.is_gift || false,
       is_expired: product.is_expired || false,
+      region_lock: formatRegionLock(product.exclusive_countries, product.disallowed_countries),
+      exclusive_countries: product.exclusive_countries || [],
+      disallowed_countries: product.disallowed_countries || [],
       expiry_date: product.expiry_date || '',
       steam_app_id: product.steam_app_id,
       created: order.created || '',
@@ -100,7 +115,29 @@ export const redeem = async (
   }).then((res) => res.json())
   console.log('Redeem response:', data)
 
+  if (data.success === false) {
+    throw new RedeemError(data.error_msg || 'Unknown error', data.redeem_retryable === false)
+  }
+
   return gift ? `https://www.humblebundle.com/gift?key=${data.giftkey}` : (data.key as string)
+}
+
+export class RedeemError extends Error {
+  permanent: boolean
+  constructor(message: string, permanent: boolean) {
+    super(message)
+    this.name = 'RedeemError'
+    this.permanent = permanent
+  }
+}
+
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 const fetchOwnedApps = async (): Promise<Array<number>> =>
