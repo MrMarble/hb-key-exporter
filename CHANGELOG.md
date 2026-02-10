@@ -1,3 +1,28 @@
+# [0.6.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.5.0...v0.6.0) (TBD)
+
+### Features
+
+* Add Humble Choice support: automatically choose and redeem keys from Choice subscription bundles
+* Redeem all key types (steam, origin, uplay, generic, etc.) except keyless entries which are unredeemable
+* Show order loading progress indicator with live count of loaded orders
+* Auto-refresh product list once all orders have finished loading
+* Show toast notification when CSV export has no keys to export
+* Add region lock column to table and CSV export showing country restrictions
+* Add SearchBuilder filter for region lock with "Redeemable in" / "Not redeemable in" conditions using ISO country codes
+* Add region lock to table (with hover menu) and the csv Export
+
+### Changed
+
+* Separate Choice and non-Choice claiming flows for more reliable key redemption
+* Normal Bundles are no longer redeemed if the Value is_expired is true
+
+### Bug Fixes
+
+* Fix ASF format in README for key and name order (#7)
+* There was an empty field in the exporter 
+
+by @Knight1
+
 # [0.5.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.5.0) (TBD)
 
 ### Features

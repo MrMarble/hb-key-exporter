@@ -38,6 +38,9 @@ export interface Product {
   is_gift: boolean
   is_expired: boolean
   owned: 'Yes' | 'No' | '-'
+  region_lock: string
+  exclusive_countries: string[]
+  disallowed_countries: string[]
   expiry_date?: string
   steam_app_id?: number
   created: string
@@ -55,6 +58,12 @@ const getCategory = (category: Order['product']['category']): Product['category'
     default:
       return 'Other'
   }
+}
+
+const formatRegionLock = (exclusive?: string[], disallowed?: string[]): string => {
+  if (exclusive?.length) return `Only: ${exclusive.length} Countries`
+  if (disallowed?.length) return `Not: ${disallowed.length} Countries`
+  return 'No'
 }
 
 export const countOrders = () =>
@@ -79,6 +88,9 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
       redeemed_key_val: product.redeemed_key_val || '',
       is_gift: product.is_gift || false,
       is_expired: product.is_expired || false,
+      region_lock: formatRegionLock(product.exclusive_countries, product.disallowed_countries),
+      exclusive_countries: product.exclusive_countries || [],
+      disallowed_countries: product.disallowed_countries || [],
       expiry_date: product.expiry_date || '',
       steam_app_id: product.steam_app_id,
       created: order.created || '',
