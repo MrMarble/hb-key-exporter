@@ -14,6 +14,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Fail if tag != package.json version
+        run: |
+          set -euo pipefail
+          pkg_ver="$(jq -r .version package.json)"
+          ref_name="${GITHUB_REF_NAME}"
+          tag="${ref_name#v}"
+          ver_line="$(grep -n -m1 '"version"' package.json | cut -d: -f1 || echo 1)"
+          if [ "$pkg_ver" != "$tag" ]; then
+            echo "::error file=package.json,line=${ver_line}::Tag ${ref_name} (version ${tag}) != package.json version ${pkg_ver}. Re-tag the correct commit (or bump version)."
+            exit 1
+          fi
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
