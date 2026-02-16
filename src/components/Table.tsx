@@ -10,13 +10,24 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
   let tableRef!: HTMLTableElement
   onMount(() => {
     console.debug('Mounting table with', products.length, 'products')
+
+    // Cast: TypeScript thinks render.date() isn’t callable
+    type DtRender<T> = (data: unknown, type: string, row: T, meta: unknown) => string
+    const dtDate = DataTable.render.date() as unknown as DtRender<Product>
+
     setDt(
       () =>
         new DataTable<Product>(tableRef, {
           columnDefs: [
             {
               targets: [7, 8],
-              render: DataTable.render.date(),
+              render: (data, type, row, meta) => {
+                if (!data) return ''
+
+                if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
+
+                return data // Raw ISO date for SearchBuilder filter + correct sorting
+              },
             },
             {
               targets: [9],
