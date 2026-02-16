@@ -1,8 +1,3 @@
-# [0.4.2](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.4.2) (2026-02-13)
-
-### Bug Fixes
-* Prevent publishing a release when the tag version does not match `package.json` (avoids stale userscript `@version` in release asset)
-
 # [0.4.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.0...v0.4.1) (2026-02-05)
 
 ### Bug Fixes
