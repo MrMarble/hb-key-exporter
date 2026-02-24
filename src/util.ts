@@ -65,6 +65,9 @@ const TZ_ALIASES: Array<[string, string]> = [
   ['Eastern Standard Time', 'America/New_York'],
   ['Eastern Daylight Time', 'America/New_York'],
   // abbrevs
+  ['UTC', 'UTC'],
+  ['GMT', 'UTC'],
+  ['Z', 'UTC'],
   ['PT', 'America/Los_Angeles'],
   ['PST', 'America/Los_Angeles'],
   ['PDT', 'America/Los_Angeles'],
@@ -94,7 +97,7 @@ const MONTHS: Record<string, number> = {
   december: 12,
 }
 
-const DEFAULT_TZ = 'America/Los_Angeles'
+const DEFAULT_HUMAN_TZ = 'America/Los_Angeles'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
@@ -124,10 +127,7 @@ function normalizeHumbleExpiry(s: string): string {
     const year = Number(d[1]),
       month = Number(d[2]),
       day = Number(d[3])
-    return zonedTimeToUtc(
-      { year, month, day, hour: 23, minute: 59, second: 59 },
-      DEFAULT_TZ
-    ).toISOString()
+    return new Date(Date.UTC(year, month - 1, day, 23, 59, 59)).toISOString()
   }
 
   // "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss" → interpret as PT, convert
@@ -139,7 +139,7 @@ function normalizeHumbleExpiry(s: string): string {
     const hour = Number(dt[4]),
       minute = Number(dt[5]),
       second = Number(dt[6] ?? '0')
-    return zonedTimeToUtc({ year, month, day, hour, minute, second }, DEFAULT_TZ).toISOString()
+    return new Date(Date.UTC(year, month - 1, day, hour, minute, second)).toISOString()
   }
 
   // last resort: let Date try, but normalize to ISO
@@ -183,11 +183,11 @@ function parseExpiryFromText(text: string): string {
 
 function pickIanaTimeZone(tzText: string): string {
   const s = tzText.replace(/[()]/g, '').trim()
-  if (!s) return DEFAULT_TZ
+  if (!s) return DEFAULT_HUMAN_TZ
   for (const [needle, iana] of TZ_ALIASES) {
     if (s.includes(needle)) return iana
   }
-  return DEFAULT_TZ
+  return DEFAULT_HUMAN_TZ
 }
 
 // Convert "local time in timeZone" → UTC Date, DST-correct (small date-fns-tz style helper)
