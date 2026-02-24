@@ -37,15 +37,35 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
     navigator.clipboard.writeText(keys)
   }
 
-  const exportCSV = (products: Product[]) => {
-    const header = Object.keys(products[0])
-    const csv = products
-      .map((product) => {
-        return header.map((h) => product[h]).join(separator())
-      })
-      .join('\n')
+  const escapeCsvField = (value: unknown, delim: string) => {
+    const s = value == null ? '' : String(value)
+    const needsQuotes =
+      s.includes('"') ||
+      s.includes('\n') ||
+      s.includes('\r') ||
+      (delim ? s.includes(delim) : false) ||
+      s.trim() !== s
 
-    navigator.clipboard.writeText(header.join(separator()) + '\n' + csv)
+    return needsQuotes ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  const exportCSV = (products: Product[]) => {
+    if (!products.length) {
+      navigator.clipboard.writeText('')
+      return
+    }
+
+    const delim = separator() || ','
+    const header = Object.keys(products[0])
+
+    const lines = [
+      header.map((h) => escapeCsvField(h, delim)).join(delim),
+      ...products.map((product) =>
+        header.map((h) => escapeCsvField(product[h], delim)).join(delim)
+      ),
+    ]
+
+    navigator.clipboard.writeText(lines.join('\r\n'))
   }
 
   const exportToClipboard = async () => {
