@@ -6,8 +6,8 @@ import styles from '../style.module.css'
 import type { Api } from 'datatables.net-dt'
 
 export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
-  const [exportType, setExportType] = createSignal('')
-  const [filtered, setFiltered] = createSignal(false)
+  const [exportType, setExportType] = createSignal('csv')
+  const [filtered, setFiltered] = createSignal(true)
   const [claim, setClaim] = createSignal(false)
   const [claimType, setClaimType] = createSignal('key')
   const [exporting, setExporting] = createSignal(false)
@@ -125,6 +125,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
             type="checkbox"
             id="claim"
             name="claim"
+            checked={claim()}
             onChange={(e) => setClaim(e.target.checked)}
           />
           Claim unredeemed games
@@ -149,6 +150,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
             type="checkbox"
             id="filtered"
             name="filtered"
+            checked={filtered()}
             onChange={(e) => setFiltered(e.target.checked)}
           />
           Use table filter
@@ -157,11 +159,9 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
           name="export"
           id="export"
           class={styles.select}
+          value={exportType()}
           onChange={(e) => setExportType(e.target.value)}
         >
-          <option value="" disabled selected>
-            Export format
-          </option>
           <option value="asf">ASF</option>
           <option value="keys">Keys</option>
           <option value="csv">CSV</option>
