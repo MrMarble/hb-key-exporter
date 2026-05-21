@@ -49,7 +49,7 @@
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "read-package-up": "^11.0.0",
-    "rollup": "^4.40.1",
+    "rollup": "^4.59.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-userscript": "^0.3.7",
     "typescript": "^5.8.3",
