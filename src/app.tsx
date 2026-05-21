@@ -7,6 +7,8 @@ import { Actions } from './components/Actions'
 import type { Api } from 'datatables.net-dt'
 
 export function App() {
+  const [open, setOpen] = createSignal(false)
+
   const [products, { refetch: refresh }] = createResource<Product[], boolean>(async (_, info) => {
     console.debug('Loading products...')
     const orders = loadOrders()
@@ -18,20 +20,27 @@ export function App() {
 
   const [dt, setDt] = createSignal<Api<Product> | null>(null)
   console.debug('App loaded')
+
   return (
-    <details>
-      <summary>
-        <h3>
-          <i class="hb hb-key"></i> Advanced Exporter
-        </h3>
-      </summary>
-      <div style={{ display: 'flex', 'justify-content': 'end', 'align-items': 'center' }}>
-        <Refresh refresh={refresh} />
+    <>
+      <button
+        type="button"
+        class="js-big-button js-nav-button"
+        onClick={() => setOpen((v) => !v)}
+        style={{ 'margin-bottom': '10px' }}
+      >
+        <i class="hb hb-key"></i> Advanced Exporter
+      </button>
+
+      <div classList={{ hidden: !open() }}>
+        <div style={{ display: 'flex', 'justify-content': 'end', 'align-items': 'center' }}>
+          <Refresh refresh={refresh} />
+        </div>
+        <Show when={products()?.length} fallback={<p>Loading products...</p>}>
+          <Table products={products()} setDt={setDt} />
+        </Show>
+        <Actions dt={dt} />
       </div>
-      <Show when={products()?.length} fallback={<p>Loading products...</p>}>
-        <Table products={products()} setDt={setDt} />
-      </Show>
-      <Actions dt={dt} />
-    </details>
+    </>
   )
 }

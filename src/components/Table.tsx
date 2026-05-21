@@ -1,4 +1,4 @@
-import { onMount, type Setter } from 'solid-js'
+import { onCleanup, onMount, type Setter } from 'solid-js'
 import { redeem, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
@@ -8,26 +8,39 @@ import { showToast } from '@violentmonkey/ui'
 
 export function Table({ products, setDt }: { products: Product[]; setDt: Setter<Api<Product>> }) {
   let tableRef!: HTMLTableElement
+
   onMount(() => {
     console.debug('Mounting table with', products.length, 'products')
 
-    // Cast: TypeScript thinks render.date() isn’t callable
+    // Cast: TypeScript thinks render.date() isn't callable
     type DtRender<T> = (data: unknown, type: string, row: T, meta: unknown) => string
     const dtDate = DataTable.render.date() as unknown as DtRender<Product>
 
+    const renderCellValue = (data: unknown, type: string): string | undefined => {
+      if (data == null || data === '') return type === 'display' ? '-' : ''
+      if (type !== 'display') return String(data)
+      return undefined
+    }
+
+    const displayDash = (data: unknown, type: string): string =>
+      !data ? (type === 'display' ? '-' : '') : String(data)
+
+    const displayDate = (data: unknown, type: string, row: Product, meta: unknown): string => {
+      if (!data) return type === 'display' ? '-' : ''
+
+      if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
+
+      return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
+    }
+
+    let dt!: Api<Product>
     setDt(
       () =>
-        new DataTable<Product>(tableRef, {
+        (dt = new DataTable<Product>(tableRef, {
           columnDefs: [
             {
               targets: [7, 8],
-              render: (data, type, row, meta) => {
-                if (!data) return ''
-
-                if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
-
-                return data // Raw ISO date for SearchBuilder filter + correct sorting
-              },
+              render: displayDate,
             },
             {
               targets: [9],
@@ -35,58 +48,77 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               defaultContent: '',
             },
           ],
-          order: {
-            idx: 7,
-            dir: 'desc',
-          },
+          order: [[7, 'desc']],
           columns: [
             {
               title: 'Type',
               data: 'key_type',
               type: 'html-utf8',
-              render: (data, type, row) =>
-                hm(
+              render: (data, type, row) => {
+                const value = renderCellValue(data, type)
+                if (value !== undefined) return value
+
+                return hm(
                   'i',
                   {
                     class: `hb hb-key hb-${data}`,
                     onclick: () => showToast(JSON.stringify(row, null, 2)),
                   },
-                  hm('span', { class: 'hidden', innerText: data })
-                ),
+                  hm('span', { class: 'hidden', innerText: String(data) })
+                )
+              },
               className: styles.platform,
             },
             {
               title: 'Name',
               data: 'human_name',
               type: 'html-utf8',
-              render: (data, _, row) =>
-                row.steam_app_id
+              render: (data, type, row) => {
+                const value = renderCellValue(data, type)
+                if (value !== undefined) return value
+
+                return row.steam_app_id
                   ? hm('a', {
                       href: `https://store.steampowered.com/app/${row.steam_app_id}`,
                       target: '_blank',
-                      innerText: data,
+                      innerText: String(data),
                     })
-                  : data,
+                  : String(data)
+              },
             },
             { title: 'Category', data: 'category', type: 'string-utf8' },
             {
               title: 'Bundle Name',
               data: 'category_human_name',
               type: 'html-utf8',
-              render: (data, _, row) =>
-                hm('a', {
+              render: (data, type, row) => {
+                const value = renderCellValue(data, type)
+                if (value !== undefined) return value
+
+                return hm('a', {
                   href: `https://www.humblebundle.com/download?key=${row.category_id}`,
                   target: '_blank',
-                  innerText: data,
-                }),
+                  innerText: String(data),
+                })
+              },
             },
-            { title: 'Gift', data: 'type', type: 'string-utf8' },
+            {
+              title: 'Gift',
+              data: 'type',
+              type: 'string-utf8',
+              render: displayDash,
+            },
             {
               title: 'Revealed',
               data: (row: Product) => (row.is_gift || row.redeemed_key_val ? 'Yes' : 'No'),
               type: 'string-utf8',
             },
-            { title: 'Owned', data: 'owned', type: 'string-utf8' },
+            {
+              title: 'Owned',
+              data: 'owned',
+              type: 'string-utf8',
+              render: displayDash,
+            },
             { title: 'Purchased', data: 'created', type: 'date' },
             { title: 'Exp. Date', data: 'expiry_date', type: 'date' },
             {
@@ -95,6 +127,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               searchable: false,
               data: (row: Product) => {
                 const actions = []
+
                 if (row.redeemed_key_val) {
                   actions.push(
                     hm(
@@ -112,6 +145,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                     )
                   )
                 }
+
                 if (
                   row.redeemed_key_val &&
                   !row.is_gift &&
@@ -152,10 +186,14 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                       {
                         class: styles.btn,
                         type: 'button',
-                        onclick: () => {
-                          redeem(row)
-                            .then((data) => navigator.clipboard.writeText(data))
-                            .then(() => showToast('Key copied to clipboard'))
+                        onclick: async () => {
+                          try {
+                            const key = await redeem(row)
+                            await navigator.clipboard.writeText(key)
+                            showToast('Key copied to clipboard')
+                          } catch (error) {
+                            showToast(error instanceof Error ? error.message : String(error))
+                          }
                         },
                       },
                       hm('i', { class: 'hb hb-magic', title: 'Reveal' })
@@ -165,10 +203,14 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                       {
                         class: styles.btn,
                         type: 'button',
-                        onclick: () => {
-                          redeem(row, true)
-                            .then((link) => navigator.clipboard.writeText(link))
-                            .then(() => showToast('Link copied to clipboard'))
+                        onclick: async () => {
+                          try {
+                            const link = await redeem(row, true)
+                            await navigator.clipboard.writeText(link)
+                            showToast('Link copied to clipboard')
+                          } catch (error) {
+                            showToast(error instanceof Error ? error.message : String(error))
+                          }
                         },
                       },
                       hm('i', { class: 'hb hb-gift', title: 'Create gift link' })
@@ -182,15 +224,81 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
           ],
           data: products,
           layout: {
-            top1: 'searchBuilder',
+            top1: {
+              searchBuilder: {
+                columns: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+              },
+            },
           },
           createdRow: function (row, data: Product) {
             if (data.is_expired) {
               row.classList.add(styles.expired)
             }
           },
-        })
+        }))
     )
+
+    // Warnings when selecting certain column filters
+
+    const container = dt.table().container() as HTMLElement
+    const searchBuilderRoot = container.querySelector('.dtsb-searchBuilder') as HTMLElement | null
+
+    type WarningRule = {
+      element: HTMLElement
+      show: (selectedColumns: string[]) => boolean
+    }
+
+    const makeWarning = (text: string): HTMLElement =>
+      hm('div', {
+        class: 'warning-wrapper',
+        innerText: text,
+        hidden: true,
+      }) as HTMLElement
+
+    const getSelectedColumns = (): string[] =>
+      Array.from(
+        searchBuilderRoot?.querySelectorAll<HTMLSelectElement>('select.dtsb-data') ?? []
+      ).map((select) => select.selectedOptions[0]?.text.trim() ?? '')
+
+    const warnings: WarningRule[] = [
+      {
+        element: makeWarning(
+          '⚠️ "Owned" column: Keys containing packages can incorrectly appear owned when only the base game is owned. This column may also contain many null values.'
+        ),
+        show: (selectedColumns) => selectedColumns.includes('Owned'),
+      },
+    ]
+
+    for (const warning of warnings) {
+      container.insertAdjacentElement('beforebegin', warning.element)
+    }
+
+    const refreshWarnings = (): void => {
+      const selectedColumns = getSelectedColumns()
+
+      for (const warning of warnings) {
+        warning.element.hidden = !warning.show(selectedColumns)
+      }
+    }
+
+    refreshWarnings()
+
+    searchBuilderRoot?.addEventListener('change', refreshWarnings)
+
+    const observer = searchBuilderRoot ? new MutationObserver(refreshWarnings) : null
+
+    if (searchBuilderRoot) {
+      observer?.observe(searchBuilderRoot, {
+        subtree: true,
+        childList: true,
+      })
+    }
+
+    onCleanup(() => {
+      searchBuilderRoot?.removeEventListener('change', refreshWarnings)
+      observer?.disconnect()
+      for (const warning of warnings) warning.element.remove()
+    })
   })
   console.debug('Table Loaded')
   return <table ref={tableRef} id="hb_extractor-table" class="display compact"></table>

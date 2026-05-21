@@ -34,11 +34,11 @@ export interface Product {
   category_human_name: string
   human_name: string
   key_type: string
-  type: 'Key' | 'Gift' | '-'
+  type: 'Key' | 'Gift' | ''
   redeemed_key_val: string
   is_gift: boolean
   is_expired: boolean
-  owned: 'Yes' | 'No' | '-'
+  owned: 'Yes' | 'No' | ''
   expiry_date?: string
   steam_app_id?: number
   created: string
@@ -262,13 +262,13 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
       const isExpired = product.is_expired || (!Number.isNaN(expiryMs) && expiryMs < Date.now())
 
       return {
-        machine_name: product.machine_name || '-',
+        machine_name: product.machine_name || '',
         category: getCategory(order.product.category),
         category_id: order.gamekey,
-        category_human_name: order.product.human_name || '-',
-        human_name: product.human_name || product.machine_name || '-',
-        key_type: product.key_type || '-',
-        type: product.is_gift ? 'Gift' : product.redeemed_key_val ? 'Key' : '-',
+        category_human_name: order.product.human_name || '',
+        human_name: product.human_name || product.machine_name || '',
+        key_type: product.key_type || '',
+        type: product.is_gift ? 'Gift' : product.redeemed_key_val ? 'Key' : '',
         redeemed_key_val: product.redeemed_key_val || '',
         is_gift: product.is_gift || false,
         is_expired: isExpired,
@@ -280,16 +280,12 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
           ? ownedApps.includes(product.steam_app_id)
             ? 'Yes'
             : 'No'
-          : '-',
+          : '',
       }
     })
   )
 
-export const redeem = async (
-  product: Pick<Product, 'machine_name' | 'category_id' | 'keyindex'>,
-  gift: boolean = false
-) => {
-  console.log('Redeeming product:', product.machine_name)
+export const redeem = async (product: Product, gift = false): Promise<string> => {
   const data = await fetch('https://www.humblebundle.com/humbler/redeemkey', {
     credentials: 'include',
     headers: {
@@ -299,48 +295,65 @@ export const redeem = async (
     method: 'POST',
     mode: 'cors',
   }).then((res) => res.json())
-  console.log('Redeem response:', data)
 
-  return gift ? `https://www.humblebundle.com/gift?key=${data.giftkey}` : (data.key as string)
+  if (!data?.success) {
+    throw new Error(data?.error_msg || data?.error || 'Failed to reveal key')
+  }
+
+  const value = gift ? data.giftkey : data.key
+  if (!value) throw new Error('Failed to reveal key')
+
+  return gift ? `https://www.humblebundle.com/gift?key=${value}` : value
 }
 
-const fetchOwnedApps = async (): Promise<Array<number>> =>
-  new Promise<VMScriptResponseObject<{ rgOwnedPackages: number[]; rgOwnedApps: number[] }>>(
-    (resolve) =>
-      GM_xmlhttpRequest({
-        url: 'https://store.steampowered.com/dynamicstore/userdata',
-        method: 'GET',
-        timeout: 5000,
-        responseType: 'json',
-        onload: resolve,
-      })
-  )
-    .then((data) =>
-      (data?.response?.rgOwnedPackages || []).concat(data?.response?.rgOwnedApps || [])
-    )
-    .catch(() => [])
+type SteamUserData = {
+  rgOwnedApps?: number[]
+}
 
-let ownedApps: Array<number> = []
-export const loadOwnedApps = async (refresh: boolean = false) => {
+const fetchOwnedApps = async (): Promise<number[]> =>
+  new Promise<VMScriptResponseObject<unknown>>((resolve, reject) =>
+    GM_xmlhttpRequest({
+      url: `https://store.steampowered.com/dynamicstore/userdata?_=${Date.now()}`, // Blank query to force a cache reload every time
+      method: 'GET',
+      timeout: 5000,
+      responseType: 'json',
+      onload: (res) => {
+        if (res.status !== 200) {
+          console.error(`Steam owned apps request failed with HTTP ${res.status}`)
+          reject(new Error(`HTTP ${res.status}`))
+          return
+        }
+
+        resolve(res)
+      },
+      onerror: (err) => {
+        console.error('Steam owned apps request error:', err)
+        reject(new Error('Steam owned apps request failed'))
+      },
+      ontimeout: () => {
+        console.error('Steam owned apps request timed out')
+        reject(new Error('Steam owned apps request timed out'))
+      },
+    })
+  )
+    .then((data) => {
+      const apps = (data.response as SteamUserData | null)?.rgOwnedApps ?? []
+      console.debug(`Steam owned apps fetched: ${apps.length}`)
+      return apps
+    })
+    .catch((err) => {
+      console.error('Failed to load Steam owned apps:', err)
+      return []
+    })
+
+let ownedApps: number[] = []
+
+export const loadOwnedApps = async (refresh: boolean = false): Promise<number[]> => {
   if (!refresh && ownedApps.length) {
-    console.debug('Using cached owned apps')
+    console.debug(`Steam owned apps returned from memory: ${ownedApps.length}`)
     return ownedApps
   }
-  console.debug('Fetching owned apps from Steam')
-  // Try to load from localStorage first
-  const storedApps = localStorage.getItem('hb-key-exporter-ownedApps')
-  if (storedApps) {
-    return JSON.parse(LZString.decompressFromUTF16(storedApps)) as Array<number>
-  }
-  // If not found, fetch from Steam
+
   ownedApps = await fetchOwnedApps()
-  if (!ownedApps) {
-    return []
-  }
-  // Store the result in localStorage for future use
-  localStorage.setItem(
-    'hb-key-exporter-ownedApps',
-    LZString.compressToUTF16(JSON.stringify(ownedApps))
-  )
   return ownedApps
 }
