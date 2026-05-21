@@ -255,8 +255,10 @@ export const loadOrders = () =>
     .map((key) => JSON.parse(LZString.decompressFromUTF16(localStorage.getItem(key))) as Order)
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
-export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
-  orders.flatMap((order) =>
+export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => {
+  const activatedMap = loadActivatedDatesMap()
+
+  return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
       const expiry = resolveExpiryDate(product)
       const expiryMs = expiry ? Date.parse(expiry) : NaN
@@ -283,11 +285,12 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
             : 'No'
           : '',
         activated_date: product.steam_app_id
-          ? (getActivatedDate(product.steam_app_id) ?? undefined)
+          ? (activatedMap[String(product.steam_app_id)] ?? undefined)
           : undefined,
       }
     })
   )
+}
 
 export const redeem = async (product: Product, gift = false): Promise<string> => {
   const data = await fetch('https://www.humblebundle.com/humbler/redeemkey', {
@@ -352,14 +355,12 @@ const fetchOwnedApps = async (): Promise<number[]> =>
 
 const ACTIVATED_DATES_KEY = 'hb-key-exporter:activated-dates'
 
-export const getActivatedDate = (appId: number): string | null => {
+const loadActivatedDatesMap = (): Record<string, string> => {
   try {
     const data = localStorage.getItem(ACTIVATED_DATES_KEY)
-    if (!data) return null
-    const map = JSON.parse(data) as Record<string, string>
-    return map[String(appId)] ?? null
+    return data ? JSON.parse(data) : {}
   } catch {
-    return null
+    return {}
   }
 }
 
