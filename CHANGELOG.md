@@ -1,3 +1,14 @@
+## [0.4.2](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.4.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **csv:** quote and escape CSV fields during export ([#16](https://github.com/MrMarble/hb-key-exporter/issues/16)) ([c9a06ce](https://github.com/MrMarble/hb-key-exporter/commit/c9a06ce5614b66b6e414c8043cd0fa58ad204970))
+* **expiry:** derive missing key expiration dates from custom_instructions_html ([#13](https://github.com/MrMarble/hb-key-exporter/issues/13)) ([1c62253](https://github.com/MrMarble/hb-key-exporter/commit/1c622531e17339febdd35c990a7435b5c59f662f))
+* **table:** make expiration date filtering work with ISO date values ([#14](https://github.com/MrMarble/hb-key-exporter/issues/14)) ([5ac9b81](https://github.com/MrMarble/hb-key-exporter/commit/5ac9b812541b3afc3b33577c1495ceab77a60326))
+
+
+
 # [0.4.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.0...v0.4.1) (2026-02-05)
 
 ### Bug Fixes
