@@ -1,5 +1,5 @@
 import { onCleanup, onMount, type Setter } from 'solid-js'
-import { redeem, type Product } from '../util'
+import { redeem, fetchActivatedDate, setActivatedDate, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
@@ -39,11 +39,11 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         (dt = new DataTable<Product>(tableRef, {
           columnDefs: [
             {
-              targets: [7, 8],
+              targets: [7, 9],
               render: displayDate,
             },
             {
-              targets: [9],
+              targets: [10],
               data: null,
               defaultContent: '',
             },
@@ -120,6 +120,55 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               render: displayDash,
             },
             { title: 'Purchased', data: 'created', type: 'date' },
+            {
+              title: 'Activated',
+              data: null,
+              type: 'string-utf8',
+              render: (data, type, row) => {
+                if (!row.steam_app_id || row.owned !== 'Yes') {
+                  return type === 'display' ? '-' : ''
+                }
+
+                if (row.activated_date) {
+                  return type === 'display' ? row.activated_date : row.activated_date
+                }
+
+                if (type !== 'display') return ''
+
+                const btn = hm(
+                  'button',
+                  {
+                    class: styles.btn,
+                    type: 'button',
+                    title: 'Fetch activation date from Steam',
+                    onclick: async (e: MouseEvent) => {
+                      const target = e.currentTarget as HTMLButtonElement
+                      target.disabled = true
+                      target.innerHTML = '<i class="hb hb-spin hb-spinner"></i>'
+                      try {
+                        const date = await fetchActivatedDate(row.steam_app_id!)
+                        if (date) {
+                          setActivatedDate(row.steam_app_id!, date)
+                          row.activated_date = date
+                          target.parentElement!.textContent = date
+                          dt.rows().invalidate().draw(false)
+                        } else {
+                          showToast('No activation date found')
+                          target.disabled = false
+                          target.innerHTML = '<i class="hb hb-clock"></i>'
+                        }
+                      } catch (err) {
+                        showToast(err instanceof Error ? err.message : 'Failed to fetch')
+                        target.disabled = false
+                        target.innerHTML = '<i class="hb hb-clock"></i>'
+                      }
+                    },
+                  },
+                  hm('i', { class: 'hb hb-clock' })
+                )
+                return btn as unknown as string
+              },
+            },
             { title: 'Exp. Date', data: 'expiry_date', type: 'date' },
             {
               title: '',
@@ -226,7 +275,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
           layout: {
             top1: {
               searchBuilder: {
-                columns: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
               },
             },
           },

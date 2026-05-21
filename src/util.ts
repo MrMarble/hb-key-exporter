@@ -43,6 +43,7 @@ export interface Product {
   steam_app_id?: number
   created: string
   keyindex?: number
+  activated_date?: string
 }
 
 type TpkLike = Pick<
@@ -281,6 +282,9 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
             ? 'Yes'
             : 'No'
           : '',
+        activated_date: product.steam_app_id
+          ? (getActivatedDate(product.steam_app_id) ?? undefined)
+          : undefined,
       }
     })
   )
@@ -345,6 +349,66 @@ const fetchOwnedApps = async (): Promise<number[]> =>
       console.error('Failed to load Steam owned apps:', err)
       return []
     })
+
+const ACTIVATED_DATES_KEY = 'hb-key-exporter:activated-dates'
+
+export const getActivatedDate = (appId: number): string | null => {
+  try {
+    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
+    if (!data) return null
+    const map = JSON.parse(data) as Record<string, string>
+    return map[String(appId)] ?? null
+  } catch {
+    return null
+  }
+}
+
+export const setActivatedDate = (appId: number, date: string): void => {
+  try {
+    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
+    const map: Record<string, string> = data ? JSON.parse(data) : {}
+    map[String(appId)] = date
+    localStorage.setItem(ACTIVATED_DATES_KEY, JSON.stringify(map))
+  } catch (e) {
+    console.error('Failed to store activated date:', e)
+  }
+}
+
+export const fetchActivatedDate = async (appId: number): Promise<string | null> => {
+  const html = await new Promise<string>((resolve, reject) => {
+    GM_xmlhttpRequest({
+      url: `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`,
+      method: 'GET',
+      timeout: 10000,
+      onload: (res) => {
+        if (res.status !== 200) {
+          reject(new Error(`HTTP ${res.status}`))
+          return
+        }
+        resolve(res.responseText)
+      },
+      onerror: () => reject(new Error('Request failed')),
+      ontimeout: () => reject(new Error('Request timed out')),
+    })
+  })
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+
+  const accountDetails = doc.querySelector('.account_details')
+  if (accountDetails) {
+    const divs = accountDetails.querySelectorAll('div')
+    for (const div of divs) {
+      const label = div.querySelector('.help_highlight_text')
+      const text = label?.textContent?.trim() ?? ''
+      if (text === 'Activated:' || text === 'Purchased:') {
+        const value = div.querySelector('.help_lowlight_text')
+        if (value?.textContent) return value.textContent.trim()
+      }
+    }
+  }
+
+  return null
+}
 
 let ownedApps: number[] = []
 
