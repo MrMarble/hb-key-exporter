@@ -18,6 +18,7 @@ Userscript to assist in key management for Humble Bundle games.
   - TXT (`<key>`)
 - Reveal hidden keys
 - Create Gift links
+- Show purchase dates for owned Steam games
 - Bulk claim keys!
 
 ## Installation
@@ -29,6 +30,9 @@ Userscript to assist in key management for Humble Bundle games.
 ## Usage
 
 Go to Humble Bundle [keys page](https://www.humblebundle.com/home/keys), open the collapsible menu by clicking on the `Advanced Exporter` at the top of the main section.
+
+>[!NOTE]
+> You need to be signed in to Steam for some of the features to work, such as showing purchase dates and claiming keys.
 
 ## Troubleshooting
 

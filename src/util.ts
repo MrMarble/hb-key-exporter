@@ -43,6 +43,7 @@ export interface Product {
   steam_app_id?: number
   created: string
   keyindex?: number
+  activated_date?: string
 }
 
 type TpkLike = Pick<
@@ -254,8 +255,10 @@ export const loadOrders = () =>
     .map((key) => JSON.parse(LZString.decompressFromUTF16(localStorage.getItem(key))) as Order)
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
-export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
-  orders.flatMap((order) =>
+export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => {
+  const activatedMap = loadActivatedDatesMap()
+
+  return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
       const expiry = resolveExpiryDate(product)
       const expiryMs = expiry ? Date.parse(expiry) : NaN
@@ -281,9 +284,13 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] =>
             ? 'Yes'
             : 'No'
           : '',
+        activated_date: product.steam_app_id
+          ? (activatedMap[String(product.steam_app_id)] ?? undefined)
+          : undefined,
       }
     })
   )
+}
 
 export const redeem = async (product: Product, gift = false): Promise<string> => {
   const data = await fetch('https://www.humblebundle.com/humbler/redeemkey', {
@@ -345,6 +352,64 @@ const fetchOwnedApps = async (): Promise<number[]> =>
       console.error('Failed to load Steam owned apps:', err)
       return []
     })
+
+const ACTIVATED_DATES_KEY = 'hb-key-exporter:activated-dates'
+
+const loadActivatedDatesMap = (): Record<string, string> => {
+  try {
+    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
+    return data ? JSON.parse(data) : {}
+  } catch {
+    return {}
+  }
+}
+
+export const setActivatedDate = (appId: number, date: string): void => {
+  try {
+    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
+    const map: Record<string, string> = data ? JSON.parse(data) : {}
+    map[String(appId)] = date
+    localStorage.setItem(ACTIVATED_DATES_KEY, JSON.stringify(map))
+  } catch (e) {
+    console.error('Failed to store activated date:', e)
+  }
+}
+
+export const fetchActivatedDate = async (appId: number): Promise<string | null> => {
+  const html = await new Promise<string>((resolve, reject) => {
+    GM_xmlhttpRequest({
+      url: `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`,
+      method: 'GET',
+      timeout: 10000,
+      onload: (res) => {
+        if (res.status !== 200) {
+          reject(new Error(`HTTP ${res.status}`))
+          return
+        }
+        resolve(res.responseText)
+      },
+      onerror: () => reject(new Error('Request failed')),
+      ontimeout: () => reject(new Error('Request timed out')),
+    })
+  })
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+
+  const accountDetails = doc.querySelector('.account_details')
+  if (accountDetails) {
+    const divs = accountDetails.querySelectorAll('div')
+    for (const div of divs) {
+      const label = div.querySelector('.help_highlight_text')
+      const text = label?.textContent?.trim() ?? ''
+      if (text === 'Activated:' || text === 'Purchased:') {
+        const value = div.querySelector('.help_lowlight_text')
+        if (value?.textContent) return value.textContent.trim()
+      }
+    }
+  }
+
+  return null
+}
 
 let ownedApps: number[] = []
 
