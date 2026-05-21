@@ -34,8 +34,6 @@ Go to Humble Bundle [keys page](https://www.humblebundle.com/home/keys), open th
 >[!NOTE]
 > You need to be signed in to Steam for some of the features to work, such as showing purchase dates and claiming keys.
 
-
-
 ## Troubleshooting
 
 Humble bundle will load all your keys into the `localStorage` of your browser. This userscript will read the keys from there. If you have a lot of keys, it may take a while to load them all the first time, leave the page open for a minute or two, you can refresh the list by clicking the `Refresh` button on the right or just reload the page.
