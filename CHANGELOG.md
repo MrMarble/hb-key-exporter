@@ -1,3 +1,15 @@
+# [0.5.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.2...v0.5.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* correct Steam owned games detection and improve Advanced Exporter UX ([#19](https://github.com/MrMarble/hb-key-exporter/issues/19)) ([89ab7a4](https://github.com/MrMarble/hb-key-exporter/commit/89ab7a4e413886d2715470051e84054aab8c1b66))
+
+
+### Features
+
+* Add `purchase date` column ([#34](https://github.com/MrMarble/hb-key-exporter/issues/34)) ([dba9f33](https://github.com/MrMarble/hb-key-exporter/commit/dba9f337876ac4fd4f72b4359041e80e211336d6))
+
 ## [0.4.2](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.4.2) (2026-05-21)
 
 
