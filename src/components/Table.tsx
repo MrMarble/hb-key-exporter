@@ -33,14 +33,28 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
     }
 
+    const displayDateTime = (data: unknown, type: string): string => {
+      if (!data) return type === 'display' ? '-' : ''
+      if (type !== 'display') return String(data)
+
+      const date = new Date(String(data))
+      if (Number.isNaN(date.getTime())) return String(data)
+
+      return `${date.toLocaleDateString()}<br>${date.toLocaleTimeString()}`
+    }
+
     let dt!: Api<Product>
     setDt(
       () =>
         (dt = new DataTable<Product>(tableRef, {
           columnDefs: [
             {
-              targets: [7, 9],
+              targets: [7],
               render: displayDate,
+            },
+            {
+              targets: [9],
+              render: displayDateTime,
             },
             {
               targets: [10],
