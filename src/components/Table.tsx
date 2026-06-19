@@ -1,4 +1,4 @@
-import { onCleanup, onMount, type Setter } from 'solid-js'
+import { createEffect, onCleanup, onMount, type Accessor, type Setter } from 'solid-js'
 import { redeem, fetchActivatedDate, setActivatedDate, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
@@ -6,7 +6,15 @@ import { hm } from '@violentmonkey/dom'
 import styles from '../style.module.css'
 import { showToast } from '@violentmonkey/ui'
 
-export function Table({ products, setDt }: { products: Product[]; setDt: Setter<Api<Product>> }) {
+export function Table({
+  products,
+  setDt,
+  useLocalTime,
+}: {
+  products: Product[]
+  setDt: Setter<Api<Product>>
+  useLocalTime: Accessor<boolean>
+}) {
   let tableRef!: HTMLTableElement
 
   onMount(() => {
@@ -28,21 +36,26 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       if (Number.isNaN(date.getTime())) return String(data)
 
       if (type === 'filter') {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
+        const year = useLocalTime() ? date.getFullYear() : date.getUTCFullYear()
+        const month = String((useLocalTime() ? date.getMonth() : date.getUTCMonth()) + 1).padStart(
+          2,
+          '0'
+        )
+        const day = String(useLocalTime() ? date.getDate() : date.getUTCDate()).padStart(2, '0')
         return `${year}-${month}-${day}`
       }
 
       if (type !== 'display') return String(data)
 
+      const dateOptions = useLocalTime() ? undefined : { timeZone: 'UTC' }
       const time = date.toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
+        ...dateOptions,
       })
 
-      return `${date.toLocaleDateString()}<br>${time}`
+      return `${date.toLocaleDateString(undefined, dateOptions)}<br>${time}`
     }
 
     const searchBuilderCriteria = (
@@ -329,6 +342,11 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
           },
         }))
     )
+
+    createEffect(() => {
+      useLocalTime()
+      dt.rows().invalidate().draw(false)
+    })
 
     // Warnings when selecting certain column filters
 
