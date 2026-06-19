@@ -12,10 +12,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
   onMount(() => {
     console.debug('Mounting table with', products.length, 'products')
 
-    // Cast: TypeScript thinks render.date() isn't callable
-    type DtRender<T> = (data: unknown, type: string, row: T, meta: unknown) => string
-    const dtDate = DataTable.render.date() as unknown as DtRender<Product>
-
     const renderCellValue = (data: unknown, type: string): string | undefined => {
       if (data == null || data === '') return type === 'display' ? '-' : ''
       if (type !== 'display') return String(data)
@@ -24,14 +20,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
     const displayDash = (data: unknown, type: string): string =>
       !data ? (type === 'display' ? '-' : '') : String(data)
-
-    const displayDate = (data: unknown, type: string, row: Product, meta: unknown): string => {
-      if (!data) return type === 'display' ? '-' : ''
-
-      if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
-
-      return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
-    }
 
     const displayDateTime = (data: unknown, type: string): string => {
       if (!data) return type === 'display' ? '-' : ''
@@ -90,11 +78,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         (dt = new DataTable<Product>(tableRef, {
           columnDefs: [
             {
-              targets: [7],
-              render: displayDate,
-            },
-            {
-              targets: [9],
+              targets: [7, 9],
               render: displayDateTime,
             },
             {
