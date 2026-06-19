@@ -123,6 +123,15 @@ const DEFAULT_HUMAN_TZ = 'America/Los_Angeles'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
+const utcDateMarker = (year: number, month: number, day: number): string =>
+  new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString()
+
+const defaultHumanExpiry = (year: number, month: number, day: number): string =>
+  zonedTimeToUtc(
+    { year, month, day, hour: 23, minute: 59, second: 59 },
+    DEFAULT_HUMAN_TZ
+  ).toISOString()
+
 function resolveExpiryDate(tpk: TpkLike): string {
   const direct = tpk.expiry_date?.trim()
   if (direct) return normalizeHumbleExpiry(direct)
@@ -143,16 +152,16 @@ function normalizeHumbleExpiry(s: string): string {
   // already has an offset or Z → keep
   if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s).toISOString()
 
-  // date-only YYYY-MM-DD → interpret as PT end-of-day, convert to UTC ISO
+  // API date-only YYYY-MM-DD → encode as a UTC midnight datetime
   const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (d) {
     const year = Number(d[1]),
       month = Number(d[2]),
       day = Number(d[3])
-    return new Date(Date.UTC(year, month - 1, day, 23, 59, 59)).toISOString()
+    return utcDateMarker(year, month, day)
   }
 
-  // "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss" → interpret as PT, convert
+  // API datetime without an offset → treat as UTC and normalize
   const dt = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/)
   if (dt) {
     const year = Number(dt[1]),
@@ -181,13 +190,15 @@ function parseExpiryFromText(text: string): string {
   const day = Number(dayStr)
   const year = Number(yearStr)
 
-  // No time provided → return ISO date only (don't invent precision)
-  if (!tailRaw) return `${year}-${pad2(month)}-${pad2(day)}`
+  // No time provided → assume end of day in Pacific and convert to UTC
+  if (!tailRaw) return defaultHumanExpiry(year, month, day)
 
   // Parse time + optional timezone phrase/abbr
   const t = tailRaw.trim()
   const tm = t.match(/(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)\s*(.*)?/i)
-  if (!tm) return `${year}-${pad2(month)}-${pad2(day)}`
+
+  // No time provided → assume end of day in Pacific and convert to UTC
+  if (!tm) return defaultHumanExpiry(year, month, day)
 
   const [, hh, mm = '0', ss = '0', ampm, tzRest = ''] = tm
   let hour = Number(hh)
@@ -198,7 +209,7 @@ function parseExpiryFromText(text: string): string {
   if (hour === 12) hour = isPM ? 12 : 0
   else if (isPM) hour += 12
 
-  const timeZone = pickIanaTimeZone(tzRest) // defaults to UTC if unknown/empty
+  const timeZone = pickIanaTimeZone(tzRest) // defaults to Pacific if unknown/empty
   const utc = zonedTimeToUtc({ year, month, day, hour, minute, second }, timeZone)
   return utc.toISOString()
 }

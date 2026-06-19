@@ -12,10 +12,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
   onMount(() => {
     console.debug('Mounting table with', products.length, 'products')
 
-    // Cast: TypeScript thinks render.date() isn't callable
-    type DtRender<T> = (data: unknown, type: string, row: T, meta: unknown) => string
-    const dtDate = DataTable.render.date() as unknown as DtRender<Product>
-
     const renderCellValue = (data: unknown, type: string): string | undefined => {
       if (data == null || data === '') return type === 'display' ? '-' : ''
       if (type !== 'display') return String(data)
@@ -25,18 +21,116 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const displayDash = (data: unknown, type: string): string =>
       !data ? (type === 'display' ? '-' : '') : String(data)
 
-    const displayDate = (data: unknown, type: string, row: Product, meta: unknown): string => {
-      if (!data) return type === 'display' ? '-' : ''
-      if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
-      return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
-    }
-
     const displayDateOnly = (iso: string): string =>
       iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
+
+    const isUtcDateMarker = (value: string): boolean =>
+      /^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/.test(value)
+
+    const parseDate = (value: unknown): Date | null => {
+      const date = new Date(String(value))
+      return Number.isNaN(date.getTime()) ? null : date
+    }
+
+    const localDateKey = (value: unknown): string => {
+      const s = String(value)
+      if (isUtcDateMarker(s)) return s.slice(0, 10)
+
+      const date = parseDate(s)
+      if (!date) return s
+
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    const displayDate = (data: unknown, type: string): string => {
+      if (!data) return type === 'display' ? '-' : ''
+
+      const s = String(data)
+
+      if (type === 'filter') return localDateKey(s)
+
+      if (type === 'display') {
+        return isUtcDateMarker(s)
+          ? displayDateOnly(s.slice(0, 10))
+          : (parseDate(s)?.toLocaleDateString() ?? s)
+      }
+
+      return s
+    }
 
     /** Steam Support URL for a given appId */
     const steamSupportUrl = (appId: number) =>
       `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`
+
+    const searchDateKey = (value: string): string => {
+      const s = value.trim()
+      if (!s) return ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+      return localDateKey(s)
+    }
+
+    type DateCondition = {
+      search?: (value: string, comparison: string[]) => boolean
+    }
+
+    const dateConditions = (
+      DataTable as typeof DataTable & {
+        Criteria?: {
+          dateConditions?: Record<string, DateCondition>
+        }
+      }
+    ).Criteria?.dateConditions
+
+    const setDateCondition = (
+      condition: string,
+      search: (value: string, comparison: string[]) => boolean
+    ): void => {
+      const dateCondition = dateConditions?.[condition]
+      if (dateCondition) dateCondition.search = search
+    }
+
+    setDateCondition('=', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left === right
+    })
+
+    setDateCondition('!=', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left !== right
+    })
+
+    setDateCondition('<', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left < right
+    })
+
+    setDateCondition('>', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left >= right
+    })
+
+    setDateCondition('between', (value, comparison) => {
+      const left = searchDateKey(value)
+      const min = searchDateKey(comparison[0] ?? '')
+      const max = searchDateKey(comparison[1] ?? '')
+      return left !== '' && min !== '' && max !== '' && left >= min && left <= max
+    })
+
+    setDateCondition('!between', (value, comparison) => {
+      const left = searchDateKey(value)
+      const min = searchDateKey(comparison[0] ?? '')
+      const max = searchDateKey(comparison[1] ?? '')
+      return left !== '' && min !== '' && max !== '' && (left < min || left > max)
+    })
 
     let dt!: Api<Product>
     setDt(
