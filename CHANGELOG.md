@@ -1,3 +1,20 @@
+## 0.5.1 (2026-06-19)
+
+
+### Bug Fixes
+
+* compare expiration dates by day
+* show expiration time in 24-hour format
+* exclude empty expiration dates from before filter
+* include selected day in expiration after filter
+* align purchase date rendering with expiration date
+
+
+### Features
+
+* add local time date toggle
+
+
 # [0.5.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.2...v0.5.0) (2026-05-21)
 
 
@@ -10,6 +27,7 @@
 
 * Add `purchase date` column ([#34](https://github.com/MrMarble/hb-key-exporter/issues/34)) ([dba9f33](https://github.com/MrMarble/hb-key-exporter/commit/dba9f337876ac4fd4f72b4359041e80e211336d6))
 
+
 ## [0.4.2](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.4.2) (2026-05-21)
 
 
@@ -20,11 +38,13 @@
 * **table:** make expiration date filtering work with ISO date values ([#14](https://github.com/MrMarble/hb-key-exporter/issues/14)) ([5ac9b81](https://github.com/MrMarble/hb-key-exporter/commit/5ac9b812541b3afc3b33577c1495ceab77a60326))
 
 
-
 # [0.4.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.0...v0.4.1) (2026-02-05)
 
+
 ### Bug Fixes
+
 * Fixed ASF export output format by @Knight1 in #6
+
 
 # [0.4.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.3.0...v0.4.0) (2025-05-31)
 
@@ -32,7 +52,6 @@
 ### Features
 
 * **cvs:** allow setting a custom separator ([#2](https://github.com/MrMarble/hb-key-exporter/issues/2)) ([30aaff5](https://github.com/MrMarble/hb-key-exporter/commit/30aaff5848797c15c40e6e55599412c366049324))
-
 
 
 # [0.3.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.2.1...0.3.0) (2025-05-11)
@@ -48,14 +67,12 @@
 * show owned apps ([82ecc2e](https://github.com/MrMarble/hb-key-exporter/commit/82ecc2e35c9394ac4171c704425205cdbc707839))
 
 
-
 ## [0.2.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.2.0...v0.2.1) (2025-05-09)
 
 
 ### Bug Fixes
 
 * add default values ([c1cda4a](https://github.com/MrMarble/hb-key-exporter/commit/c1cda4a00957cc0102129777b9907ad976a0e76f))
-
 
 
 # [0.2.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.1.1...v0.2.0) (2025-05-08)
@@ -73,7 +90,6 @@
 * show unrevealed keys ([fcf44e2](https://github.com/MrMarble/hb-key-exporter/commit/fcf44e27927a7806175862f87b19f2e35ff7ea74))
 
 
-
 ## [0.1.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.1.0...v0.1.1) (2025-05-07)
 
 
@@ -82,8 +98,5 @@
 * add uptate urls to meta ([6068fbf](https://github.com/MrMarble/hb-key-exporter/commit/6068fbfb6911a91b9a2caa41850d26d0b7fad948))
 
 
-
 # 0.1.0 (2025-05-07)
-
-
 
