@@ -48,7 +48,13 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
       if (type !== 'display') return String(data)
 
-      return `${date.toLocaleDateString()}<br>${date.toLocaleTimeString()}`
+      const time = date.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+
+      return `${date.toLocaleDateString()}<br>${time}`
     }
 
     let dt!: Api<Product>
