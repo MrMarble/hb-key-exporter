@@ -420,9 +420,37 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         }))
     )
 
+    const container = dt.table().container() as HTMLElement
+
+    let pagingTop: number | null = null
+
+    const getPaging = () => container.querySelector<HTMLElement>('.dt-paging')
+
+    const rememberPagingTop = () => {
+      const rect = getPaging()?.getBoundingClientRect()
+
+      pagingTop = rect && rect.bottom > 0 && rect.top < window.innerHeight ? rect.top : null
+    }
+
+    const restorePagingTop = () => {
+      if (pagingTop == null) return
+
+      const previousTop = pagingTop
+      pagingTop = null
+
+      requestAnimationFrame(() => {
+        const nextTop = getPaging()?.getBoundingClientRect().top
+        if (nextTop != null) {
+          window.scrollBy({ top: nextTop - previousTop, behavior: 'auto' })
+        }
+      })
+    }
+
+    dt.on('page', rememberPagingTop)
+    dt.on('draw', restorePagingTop)
+
     // Warnings when selecting certain column filters
 
-    const container = dt.table().container() as HTMLElement
     const searchBuilderRoot = container.querySelector('.dtsb-searchBuilder') as HTMLElement | null
 
     type WarningRule = {
@@ -483,6 +511,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     }
 
     onCleanup(() => {
+      dt.off('page', rememberPagingTop)
+      dt.off('draw', restorePagingTop)
+
       searchBuilderRoot?.removeEventListener('change', refreshWarnings)
       observer?.disconnect()
       for (const warning of warnings) warning.element.remove()
