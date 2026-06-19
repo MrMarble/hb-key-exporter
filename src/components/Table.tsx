@@ -57,6 +57,25 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       return `${date.toLocaleDateString()}<br>${time}`
     }
 
+    const searchBuilderCriteria = (
+      DataTable as typeof DataTable & {
+        Criteria?: {
+          dateConditions?: Record<
+            string,
+            { search?: (value: string, comparison: string[]) => boolean }
+          >
+        }
+      }
+    ).Criteria
+
+    const beforeDateCondition = searchBuilderCriteria?.dateConditions?.['<']
+    if (beforeDateCondition) {
+      beforeDateCondition.search = (value: string, comparison: string[]) => {
+        value = value.replace(/(\/|-|,)/g, '-')
+        return value.length > 0 && value < comparison[0]
+      }
+    }
+
     let dt!: Api<Product>
     setDt(
       () =>
@@ -197,7 +216,11 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                 return btn as unknown as string
               },
             },
-            { title: 'Exp. Date', data: 'expiry_date', type: 'date' },
+            {
+              title: 'Exp. Date',
+              data: 'expiry_date',
+              type: 'date',
+            },
             {
               title: '',
               orderable: false,
