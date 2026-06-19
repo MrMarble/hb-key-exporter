@@ -76,6 +76,14 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       }
     }
 
+    const afterDateCondition = searchBuilderCriteria?.dateConditions?.['>']
+    if (afterDateCondition) {
+      afterDateCondition.search = (value: string, comparison: string[]) => {
+        value = value.replace(/(\/|-|,)/g, '-')
+        return value.length > 0 && value >= comparison[0]
+      }
+    }
+
     let dt!: Api<Product>
     setDt(
       () =>
