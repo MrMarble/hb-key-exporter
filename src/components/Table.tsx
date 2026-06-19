@@ -35,10 +35,18 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
     const displayDateTime = (data: unknown, type: string): string => {
       if (!data) return type === 'display' ? '-' : ''
-      if (type !== 'display') return String(data)
 
       const date = new Date(String(data))
       if (Number.isNaN(date.getTime())) return String(data)
+
+      if (type === 'filter') {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+
+      if (type !== 'display') return String(data)
 
       return `${date.toLocaleDateString()}<br>${date.toLocaleTimeString()}`
     }
