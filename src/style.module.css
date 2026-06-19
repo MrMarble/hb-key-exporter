@@ -38,3 +38,9 @@ tr.expired {
   display: flex;
   gap: 2px;
 }
+
+.redeemed_actions {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}

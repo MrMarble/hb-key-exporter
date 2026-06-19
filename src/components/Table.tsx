@@ -1,5 +1,5 @@
 import { onCleanup, onMount, type Setter } from 'solid-js'
-import { redeem, fetchActivatedDate, setActivatedDate, type Product } from '../util'
+import { redeem, fetchRedeemedDate, setRedeemedDate, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
@@ -27,11 +27,16 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
     const displayDate = (data: unknown, type: string, row: Product, meta: unknown): string => {
       if (!data) return type === 'display' ? '-' : ''
-
       if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
-
       return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
     }
+
+    const displayDateOnly = (iso: string): string =>
+      iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
+
+    /** Steam Support URL for a given appId */
+    const steamSupportUrl = (appId: number) =>
+      `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`
 
     let dt!: Api<Product>
     setDt(
@@ -121,39 +126,61 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
             },
             { title: 'Purchased', data: 'created', type: 'date' },
             {
-              title: 'Activated',
+              // ---------------------------------------------------------------
+              // "Redeemed" column — Steam Support app-level data
+              // ---------------------------------------------------------------
+              title: 'Redeemed',
               data: null,
-              type: 'string-utf8',
-              render: (data, type, row) => {
-                if (!row.steam_app_id || row.owned !== 'Yes') {
-                  return type === 'display' ? '-' : ''
+              type: 'date',
+              className: 'dt-right',
+              render: (_, type, row) => {
+                // For SearchBuilder / sorting: emit only the ISO date string so
+                // DataTables never sees the display label text.
+                if (type !== 'display') {
+                  return row.redeemed_date?.iso ?? ''
                 }
 
-                if (row.activated_date) {
-                  return type === 'display' ? row.activated_date : row.activated_date
+                // ── Already fetched ─────────────────────────────────────────
+                if (row.redeemed_date) {
+                  const { label, iso } = row.redeemed_date
+                  return hm('a', {
+                    href: steamSupportUrl(row.steam_app_id!),
+                    target: '_blank',
+                    title: 'Open Steam Support page',
+                    innerText: `${label}: ${displayDateOnly(iso)}`,
+                  }) as unknown as string
                 }
 
-                if (type !== 'display') return ''
+                // ── Not owned on this Steam account — nothing to show ───────────────────
+                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
 
-                const btn = hm(
+                // ── Not yet fetched: show a fetch button ────────────────────────────────
+                const fetchBtn = hm(
                   'button',
                   {
                     class: styles.btn,
                     type: 'button',
-                    title: 'Fetch activation date from Steam',
+                    title: 'Fetch redeemed date from Steam Support',
                     onclick: async (e: MouseEvent) => {
                       const target = e.currentTarget as HTMLButtonElement
                       target.disabled = true
                       target.innerHTML = '<i class="hb hb-spin hb-spinner"></i>'
                       try {
-                        const date = await fetchActivatedDate(row.steam_app_id!)
-                        if (date) {
-                          setActivatedDate(row.steam_app_id!, date)
-                          row.activated_date = date
-                          target.parentElement!.textContent = date
-                          dt.rows().invalidate().draw(false)
+                        const result = await fetchRedeemedDate(row.steam_app_id!)
+                        if (result) {
+                          const appId = row.steam_app_id!
+
+                          setRedeemedDate(appId, result)
+
+                          for (const product of products) {
+                            if (product.steam_app_id === appId) {
+                              product.redeemed_date = result
+                            }
+                          }
+
+                          dt.rows().invalidate('data').draw('page')
                         } else {
-                          showToast('No activation date found')
+                          showToast('No redeemed date found on Steam Support page')
                           target.disabled = false
                           target.innerHTML = '<i class="hb hb-clock"></i>'
                         }
@@ -166,7 +193,24 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   },
                   hm('i', { class: 'hb hb-clock' })
                 )
-                return btn as unknown as string
+
+                // ── Not yet fetched: show Steam Support link + fetch button ──────────────
+                const supportLink = hm(
+                  'a',
+                  {
+                    class: styles.btn,
+                    href: steamSupportUrl(row.steam_app_id),
+                    target: '_blank',
+                    title: 'Open Steam Support page',
+                    style: 'margin-right:2px;',
+                  },
+                  hm('i', { class: 'hb hb-steam' })
+                )
+
+                return hm('span', { class: styles.redeemed_actions }, [
+                  supportLink,
+                  fetchBtn,
+                ]) as unknown as string
               },
             },
             { title: 'Exp. Date', data: 'expiry_date', type: 'date' },
@@ -195,12 +239,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   )
                 }
 
-                if (
-                  row.redeemed_key_val &&
-                  !row.is_gift &&
-                  !row.is_expired &&
-                  row.key_type === 'steam'
-                ) {
+                if (row.redeemed_key_val && !row.is_gift && row.key_type === 'steam') {
                   actions.push(
                     hm(
                       'a',
@@ -312,9 +351,15 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const warnings: WarningRule[] = [
       {
         element: makeWarning(
-          '⚠️ "Owned" column: Keys containing packages can incorrectly appear owned when only the base game is owned. This column may also contain many null values.'
+          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because only one app ID is returned by Humble\'s API. This column may also contain many null values.'
         ),
         show: (selectedColumns) => selectedColumns.includes('Owned'),
+      },
+      {
+        element: makeWarning(
+          '⚠️ "Redeemed" column uses Steam Support app ID data, which may be inaccurate when the key\'s package (sub ID) contains more than one app ID.'
+        ),
+        show: (selectedColumns) => selectedColumns.includes('Redeemed'),
       },
     ]
 
