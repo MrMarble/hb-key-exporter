@@ -21,6 +21,23 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const displayDash = (data: unknown, type: string): string =>
       !data ? (type === 'display' ? '-' : '') : String(data)
 
+    const displayYesNoBadge = (
+      data: unknown,
+      type: string,
+      noClassName = styles.no_badge
+    ): string => {
+      const value = displayDash(data, type)
+
+      if (type !== 'display' || (value !== 'Yes' && value !== 'No')) {
+        return value
+      }
+
+      return hm('span', {
+        class: `${styles.yes_no_badge} ${value === 'Yes' ? styles.yes_badge : noClassName}`,
+        innerText: value,
+      }) as unknown as string
+    }
+
     const displayDateOnly = (iso: string): string =>
       iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
 
@@ -224,12 +241,13 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               title: 'Revealed',
               data: (row: Product) => (row.is_gift || row.redeemed_key_val ? 'Yes' : 'No'),
               type: 'string-utf8',
+              render: (data, type) => displayYesNoBadge(data, type, styles.warning_badge),
             },
             {
               title: 'Owned',
               data: 'owned',
               type: 'string-utf8',
-              render: displayDash,
+              render: displayYesNoBadge,
             },
             { title: 'Purchased', data: 'created', type: 'date' },
             {
