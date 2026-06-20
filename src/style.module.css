@@ -66,8 +66,13 @@ tr.expired {
 }
 
 .no_badge {
-  background-color: #e2e3e5;
-  color: #41464b;
+  background-color: #cfd4da;
+  color: #212529;
+}
+
+.info_badge {
+  background-color: #b8d4ec;
+  color: #0f3048;
 }
 
 .warning_badge {
