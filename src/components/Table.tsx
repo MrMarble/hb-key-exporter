@@ -1,5 +1,12 @@
 import { onCleanup, onMount, type Setter } from 'solid-js'
-import { redeem, fetchRedeemedDate, setRedeemedDate, type Product } from '../util'
+import {
+  clearSteamSupportNotice,
+  redeem,
+  fetchRedeemedDate,
+  setRedeemedDate,
+  showSteamSupportNotice,
+  type Product,
+} from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
@@ -36,6 +43,31 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         class: `${styles.yes_no_badge} ${value === 'Yes' ? styles.yes_badge : noClassName}`,
         innerText: value,
       }) as unknown as string
+    }
+
+    const displayTooltipDash = (title: string, className?: string): string =>
+      hm('span', {
+        class: className,
+        title,
+        innerText: '-',
+      }) as unknown as string
+
+    const displayOwned = (data: unknown, type: string, row: Product): string => {
+      if (data) return displayYesNoBadge(data, type)
+      if (type !== 'display') return ''
+
+      if (row.key_type !== 'steam') {
+        return displayTooltipDash('Ownership detection is only available for Steam keys.')
+      }
+
+      if (!row.steam_app_id) {
+        return displayTooltipDash(
+          "Humble's API returned an empty Steam app ID.",
+          `${styles.yes_no_badge} ${styles.info_badge}`
+        )
+      }
+
+      return displayTooltipDash('Steam ownership data could not be loaded.')
     }
 
     const displayDateOnly = (iso: string): string =>
@@ -258,7 +290,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               title: 'Owned',
               data: 'owned',
               type: 'string-utf8',
-              render: displayYesNoBadge,
+              render: displayOwned,
             },
             { title: 'Purchased', data: 'created', type: 'date' },
             {
@@ -316,6 +348,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                           const appId = row.steam_app_id!
 
                           setRedeemedDate(appId, result)
+                          clearSteamSupportNotice(appId)
 
                           for (const product of products) {
                             if (product.steam_app_id === appId) {
@@ -325,11 +358,12 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
                           dt.rows().invalidate('data').draw('page')
                         } else {
-                          showToast('No redeemed date found on Steam Support page')
+                          showSteamSupportNotice(row.steam_app_id!)
                           target.disabled = false
                           target.innerHTML = '<i class="hb hb-clock"></i>'
                         }
                       } catch (err) {
+                        showSteamSupportNotice(row.steam_app_id!)
                         showToast(err instanceof Error ? err.message : 'Failed to fetch')
                         target.disabled = false
                         target.innerHTML = '<i class="hb hb-clock"></i>'
@@ -524,7 +558,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const warnings: WarningRule[] = [
       {
         element: makeWarning(
-          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because only one app ID is returned by Humble\'s API. This column may also contain many null values.'
+          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because Humble\'s API does not return package IDs. This column shows a dash when ownership detection is not supported, Humble\'s API does not provide a Steam app ID, or Steam ownership data cannot be loaded.'
         ),
         show: (selectedColumns) => selectedColumns.includes('Owned'),
       },

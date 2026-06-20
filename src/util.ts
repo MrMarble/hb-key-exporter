@@ -18,7 +18,7 @@ export interface Order {
       key_type: string
       keyindex: number
       redeemed_key_val?: string
-      steam_app_id?: number
+      steam_app_id?: number | null
       sold_out?: boolean
       direct_redeem?: boolean
       exclusive_countries?: string[]
@@ -287,13 +287,17 @@ export const loadOrders = () =>
     .map((key) => JSON.parse(LZString.decompressFromUTF16(localStorage.getItem(key))) as Order)
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
-export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => {
+export const getProducts = (orders: Order[], ownedApps: number[] | null): Product[] => {
   const redeemedMap = loadRedeemedDatesMap()
 
   return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
       const expiry = resolveExpiryDate(product)
       const created = order.created ? normalizeHumbleDateTime(order.created) : ''
+      const steamAppId =
+        typeof product.steam_app_id === 'number' && product.steam_app_id > 0
+          ? product.steam_app_id
+          : undefined
       const expiryMs = expiry ? Date.parse(expiry) : NaN
       const isExpired = product.is_expired || (!Number.isNaN(expiryMs) && expiryMs < Date.now())
 
@@ -309,17 +313,17 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => 
         is_gift: product.is_gift || false,
         is_expired: isExpired,
         expiry_date: expiry,
-        steam_app_id: product.steam_app_id,
+        steam_app_id: steamAppId,
         created,
         keyindex: product.keyindex,
-        owned: product.steam_app_id
-          ? ownedApps.includes(product.steam_app_id)
-            ? 'Yes'
-            : 'No'
+        owned: steamAppId
+          ? ownedApps === null
+            ? ''
+            : ownedApps.includes(steamAppId)
+              ? 'Yes'
+              : 'No'
           : '',
-        redeemed_date: product.steam_app_id
-          ? (redeemedMap[String(product.steam_app_id)] ?? undefined)
-          : undefined,
+        redeemed_date: steamAppId ? (redeemedMap[String(steamAppId)] ?? undefined) : undefined,
       }
     })
   )
@@ -350,40 +354,260 @@ type SteamUserData = {
   rgOwnedApps?: number[]
 }
 
-const fetchOwnedApps = async (): Promise<number[]> =>
-  new Promise<VMScriptResponseObject<unknown>>((resolve, reject) =>
+type OwnedAppsCache = {
+  steamId: string
+  apps: number[]
+  fetchedAt: string
+}
+
+const OWNED_APPS_KEY = 'hb-key-exporter:owned-apps'
+const OWNED_APPS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
+const STEAM_ID64_BASE = 76561197960265728n
+
+const requestSteam = (
+  url: string,
+  responseType?: 'json'
+): Promise<VMScriptResponseObject<unknown>> =>
+  new Promise((resolve, reject) =>
     GM_xmlhttpRequest({
-      url: `https://store.steampowered.com/dynamicstore/userdata?_=${Date.now()}`, // Blank query to force a cache reload every time
+      url,
       method: 'GET',
       timeout: 5000,
-      responseType: 'json',
+      responseType,
       onload: (res) => {
         if (res.status !== 200) {
-          console.error(`Steam owned apps request failed with HTTP ${res.status}`)
           reject(new Error(`HTTP ${res.status}`))
           return
         }
         resolve(res)
       },
-      onerror: (err) => {
-        console.error('Steam owned apps request error:', err)
-        reject(new Error('Steam owned apps request failed'))
-      },
-      ontimeout: () => {
-        console.error('Steam owned apps request timed out')
-        reject(new Error('Steam owned apps request timed out'))
-      },
+      onerror: () => reject(new Error('Steam request failed')),
+      ontimeout: () => reject(new Error('Steam request timed out')),
     })
   )
-    .then((data) => {
-      const apps = (data.response as SteamUserData | null)?.rgOwnedApps ?? []
+
+type SteamAccountIdResult = {
+  steamId: string | null
+  loadFailed: boolean
+}
+
+const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
+  requestSteam(`https://store.steampowered.com/account/?_=${Date.now()}`)
+    .then((res) => {
+      const html = res.responseText ?? ''
+      const steamId = html.match(/\bg_steamID\s*=\s*["']?(\d+)["']?/)?.[1]
+      const accountId = html.match(/\bg_AccountID\s*=\s*(\d+)/)?.[1]
+
+      if (steamId && steamId !== '0') {
+        return {
+          steamId,
+          loadFailed: false,
+        }
+      }
+
+      if (accountId && accountId !== '0') {
+        return {
+          steamId: (STEAM_ID64_BASE + BigInt(accountId)).toString(),
+          loadFailed: false,
+        }
+      }
+
+      return {
+        steamId: null,
+        loadFailed: true,
+      }
+    })
+    .catch((err) => {
+      console.warn('Failed to detect Steam account:', err)
+      return {
+        steamId: null,
+        loadFailed: true,
+      }
+    })
+
+const loadOwnedAppsCache = (): OwnedAppsCache | null => {
+  try {
+    const data = localStorage.getItem(OWNED_APPS_KEY)
+    if (!data) return null
+
+    const cache = JSON.parse(data) as OwnedAppsCache
+    if (!cache.steamId || !Array.isArray(cache.apps)) return null
+
+    const age = Date.now() - Date.parse(cache.fetchedAt)
+    if (!Number.isFinite(age) || age > OWNED_APPS_CACHE_MAX_AGE_MS) return null
+
+    return cache
+  } catch {
+    return null
+  }
+}
+
+const saveOwnedAppsCache = (steamId: string, apps: number[]): void => {
+  try {
+    localStorage.setItem(
+      OWNED_APPS_KEY,
+      JSON.stringify({
+        steamId,
+        apps,
+        fetchedAt: new Date().toISOString(),
+      } satisfies OwnedAppsCache)
+    )
+  } catch (e) {
+    console.error('Failed to store Steam owned apps:', e)
+  }
+}
+
+const clearOwnedAppsCache = (): void => {
+  localStorage.removeItem(OWNED_APPS_KEY)
+}
+
+const fetchOwnedApps = async (): Promise<number[] | null> =>
+  requestSteam(`https://store.steampowered.com/dynamicstore/userdata?_=${Date.now()}`, 'json')
+    .then((res) => {
+      const apps = (res.response as SteamUserData | null)?.rgOwnedApps
+
+      if (!Array.isArray(apps) || apps.length === 0) {
+        console.warn('Steam owned apps unavailable or empty')
+        return null
+      }
+
       console.debug(`Steam owned apps fetched: ${apps.length}`)
       return apps
     })
     .catch((err) => {
       console.error('Failed to load Steam owned apps:', err)
-      return []
+      return null
     })
+
+type SteamNoticeLink = {
+  text: string
+  href: string
+  onClick?: () => void
+}
+
+const ensureNoticeRoot = (): HTMLElement => {
+  let root = document.getElementById('hb_extractor-notices')
+
+  if (!root) {
+    root = document.createElement('div')
+    root.id = 'hb_extractor-notices'
+    document.body.append(root)
+  }
+
+  return root
+}
+
+const showSteamNotice = (
+  id: string,
+  title: string,
+  message: string | string[],
+  links: SteamNoticeLink[]
+): void => {
+  if (document.getElementById(id)) return
+
+  const notice = document.createElement('div')
+  notice.id = id
+  notice.className = 'hb_extractor-notice'
+
+  const heading = document.createElement('strong')
+  heading.textContent = title
+
+  const close = document.createElement('button')
+  close.type = 'button'
+  close.className = 'hb_extractor-notice-close'
+  close.title = 'Dismiss'
+  close.textContent = '×'
+  close.addEventListener('click', () => notice.remove())
+
+  const body = document.createElement('p')
+  const messageLines = Array.isArray(message) ? message : [message]
+
+  for (const [index, line] of messageLines.entries()) {
+    if (index > 0) body.append(document.createElement('br'))
+    body.append(line)
+  }
+
+  const actions = document.createElement('div')
+  actions.className = 'hb_extractor-notice-actions'
+
+  for (const link of links) {
+    const a = document.createElement('a')
+    a.href = link.href
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.textContent = link.text
+    if (link.onClick) a.addEventListener('click', link.onClick)
+    actions.append(a)
+  }
+
+  notice.append(heading, close, body, actions)
+  ensureNoticeRoot().append(notice)
+}
+
+const clearSteamNotice = (id: string): void => {
+  document.getElementById(id)?.remove()
+}
+
+export const showSteamOwnedNotice = (usedCache: boolean, onOpen?: () => void): void => {
+  showSteamNotice(
+    'hb_extractor-notice-steam-owned-apps',
+    'Steam games could not be loaded',
+    usedCache
+      ? ['Open Steam data, then refresh.', 'Using cached Steam games from a previous load.']
+      : ['Open Steam data, then refresh.', 'No cached Steam games are available.'],
+    [
+      {
+        text: 'Open Steam data',
+        href: 'https://store.steampowered.com/dynamicstore/userdata/',
+        onClick: onOpen,
+      },
+    ]
+  )
+}
+
+export const clearSteamOwnedNotice = (): void => {
+  clearSteamNotice('hb_extractor-notice-steam-owned-apps')
+}
+
+export const showSteamAccountNotice = (onOpen?: () => void): void => {
+  showSteamNotice(
+    'hb_extractor-notice-steam-account',
+    'Steam account could not be checked',
+    [
+      'Open Steam account, then refresh.',
+      'Cache cannot be cleared automatically if you changed Steam accounts.',
+    ],
+    [
+      {
+        text: 'Open Steam account',
+        href: 'https://store.steampowered.com/account/',
+        onClick: onOpen,
+      },
+    ]
+  )
+}
+
+export const clearSteamAccountNotice = (): void => {
+  clearSteamNotice('hb_extractor-notice-steam-account')
+}
+
+export const showSteamSupportNotice = (appId: number): void => {
+  showSteamNotice(
+    `hb_extractor-notice-steam-support-${appId}`,
+    'Steam Support unavailable',
+    'Open the Support page, then retry.',
+    [
+      {
+        text: 'Open Support page',
+        href: `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`,
+      },
+    ]
+  )
+}
+
+export const clearSteamSupportNotice = (appId: number): void => {
+  clearSteamNotice(`hb_extractor-notice-steam-support-${appId}`)
+}
 
 // ---------------------------------------------------------------------------
 // Redeemed date — Steam Support app-level data
@@ -496,14 +720,85 @@ export const fetchRedeemedDate = async (appId: number): Promise<RedeemedDate | n
   return null
 }
 
-let ownedApps: number[] = []
+export type OwnedAppsResult = {
+  apps: number[] | null
+  liveLoadFailed: boolean
+  usedCache: boolean
+  accountLoadFailed: boolean
+}
 
-export const loadOwnedApps = async (refresh: boolean = false): Promise<number[]> => {
-  if (!refresh && ownedApps.length) {
-    console.debug(`Steam owned apps returned from memory: ${ownedApps.length}`)
-    return ownedApps
+let ownedApps: number[] | null = null
+let ownedAppsLoaded = false
+let ownedAppsLiveLoadFailed = false
+let ownedAppsUsedCache = false
+let steamAccountLoadFailed = false
+
+export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedAppsResult> => {
+  if (!refresh && ownedAppsLoaded) {
+    return {
+      apps: ownedApps,
+      liveLoadFailed: ownedAppsLiveLoadFailed,
+      usedCache: ownedAppsUsedCache,
+      accountLoadFailed: steamAccountLoadFailed,
+    }
   }
 
-  ownedApps = await fetchOwnedApps()
-  return ownedApps
+  let cache = loadOwnedAppsCache()
+  const steamAccount = await fetchSteamAccountId()
+  const steamId = steamAccount.steamId
+  console.debug('Steam account ID:', steamAccount ?? 'unavailable')
+  console.debug('Steam steam ID:', steamId ?? 'unavailable')
+  steamAccountLoadFailed = steamAccount.loadFailed
+
+  if (steamId && cache?.steamId && steamId !== cache.steamId) {
+    clearOwnedAppsCache()
+    cache = null
+  }
+
+  const fetched = await fetchOwnedApps()
+
+  if (fetched) {
+    ownedApps = fetched
+    ownedAppsLoaded = true
+    ownedAppsLiveLoadFailed = false
+    ownedAppsUsedCache = false
+
+    if (steamId) {
+      saveOwnedAppsCache(steamId, fetched)
+    }
+
+    return {
+      apps: ownedApps,
+      liveLoadFailed: false,
+      usedCache: false,
+      accountLoadFailed: steamAccountLoadFailed,
+    }
+  }
+
+  ownedAppsLiveLoadFailed = true
+
+  if (!refresh && cache && (!steamId || steamId === cache.steamId)) {
+    ownedApps = cache.apps
+    ownedAppsLoaded = true
+    ownedAppsUsedCache = true
+    console.debug(
+      `Steam owned apps returned from cache after live load failed: ${ownedApps.length}`
+    )
+    return {
+      apps: ownedApps,
+      liveLoadFailed: true,
+      usedCache: true,
+      accountLoadFailed: steamAccountLoadFailed,
+    }
+  }
+
+  ownedApps = null
+  ownedAppsLoaded = true
+  ownedAppsUsedCache = false
+  return {
+    apps: ownedApps,
+    liveLoadFailed: true,
+    usedCache: false,
+    accountLoadFailed: steamAccountLoadFailed,
+  }
 }

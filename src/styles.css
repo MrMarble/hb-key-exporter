@@ -36,3 +36,54 @@
   background: #fff !important;
   color: #000 !important;
 }
+
+#hb_extractor-notices {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.hb_extractor-notice {
+  position: relative;
+  padding: 8px 28px 8px 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffecb5;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.hb_extractor-notice p {
+  margin: 3px 0 5px;
+}
+
+.hb_extractor-notice a {
+  color: #664d03;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.hb_extractor-notice-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hb_extractor-notice-close {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #664d03;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
