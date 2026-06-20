@@ -41,10 +41,13 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const displayDateOnly = (iso: string): string =>
       iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
 
-    const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+    const dateFormatter = new Intl.DateTimeFormat(undefined, {
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
+    })
+
+    const timeFormatter = new Intl.DateTimeFormat(undefined, {
       hour: 'numeric',
       minute: '2-digit',
     })
@@ -63,7 +66,15 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       if (isUtcDateMarker(s)) return displayDateOnly(s.slice(0, 10))
 
       const date = parseDate(s)
-      return date ? dateTimeFormatter.format(date) : s
+      if (!date) return s
+
+      const datePart = dateFormatter.format(date)
+      const timePart = timeFormatter.format(date)
+
+      return [
+        `<span class="${styles.date_time_part}">${datePart}</span>`,
+        `<span class="${styles.date_time_part}">${timePart}</span>`,
+      ].join(' ')
     }
 
     const localDateKey = (value: unknown): string => {
@@ -268,12 +279,21 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                 // ── Already fetched ─────────────────────────────────────────
                 if (row.redeemed_date) {
                   const { label, iso } = row.redeemed_date
-                  return hm('a', {
-                    href: steamSupportUrl(row.steam_app_id!),
-                    target: '_blank',
-                    title: 'Open Steam Support page',
-                    innerText: `${label}: ${displayDateOnly(iso)}`,
-                  }) as unknown as string
+                  return hm(
+                    'a',
+                    {
+                      href: steamSupportUrl(row.steam_app_id!),
+                      target: '_blank',
+                      title: 'Open Steam Support page',
+                    },
+                    [
+                      `${label}: `,
+                      hm('span', {
+                        class: styles.date_time_part,
+                        innerText: displayDateOnly(iso),
+                      }),
+                    ]
+                  ) as unknown as string
                 }
 
                 // ── Not owned on this Steam account — nothing to show ───────────────────

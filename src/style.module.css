@@ -6,6 +6,10 @@ tr.expired {
   background-color: #f8d7da !important;
 }
 
+.date_time_part {
+  white-space: nowrap;
+}
+
 .select {
   padding: 5px 30px 5px 10px;
   border: 1px solid #ccc;
