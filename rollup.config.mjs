@@ -3,6 +3,9 @@ import commonjsPlugin from '@rollup/plugin-commonjs'
 import jsonPlugin from '@rollup/plugin-json'
 import resolvePlugin from '@rollup/plugin-node-resolve'
 import replacePlugin from '@rollup/plugin-replace'
+import { createServer } from 'http'
+import { readFile } from 'fs/promises'
+import { join, extname } from 'path'
 import postcssPlugin from 'rollup-plugin-postcss'
 import { isAbsolute, relative, resolve } from 'path'
 import { readPackageUp } from 'read-package-up'
@@ -47,7 +50,28 @@ export default defineConfig(
             process.env.NODE_ENV === 'production' ? packageJson.downloadURL : ''
           )
       ),
-    ],
+      process.env.ROLLUP_WATCH && {
+        name: 'serve',
+        writeBundle() {
+          createServer(async (req, res) => {
+            const filePath = join('dist', req.url === '/' ? 'index.html' : req.url)
+            try {
+              const data = await readFile(filePath)
+              const ext = extname(filePath)
+              const contentType = ext === '.js' ? 'application/javascript' : 'text/html'
+              res.writeHead(200, {
+                'Content-Type': contentType,
+                'Cache-Control': 'max-age=5',
+              })
+              res.end(data)
+            } catch {
+              res.writeHead(404)
+              res.end('Not found')
+            }
+          }).listen(8080, () => console.log('http://localhost:8080'))
+        },
+      },
+    ].filter(Boolean),
     external: defineExternal([
       'lz-string',
       'datatables.net-dt',
