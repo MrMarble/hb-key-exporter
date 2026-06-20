@@ -24,12 +24,29 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const displayDateOnly = (iso: string): string =>
       iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
 
+    const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
     const isUtcDateMarker = (value: string): boolean =>
       /^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/.test(value)
 
     const parseDate = (value: unknown): Date | null => {
       const date = new Date(String(value))
       return Number.isNaN(date.getTime()) ? null : date
+    }
+
+    const displayDateTime = (value: unknown): string => {
+      const s = String(value)
+
+      if (isUtcDateMarker(s)) return displayDateOnly(s.slice(0, 10))
+
+      const date = parseDate(s)
+      return date ? dateTimeFormatter.format(date) : s
     }
 
     const localDateKey = (value: unknown): string => {
@@ -53,11 +70,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
 
       if (type === 'filter') return localDateKey(s)
 
-      if (type === 'display') {
-        return isUtcDateMarker(s)
-          ? displayDateOnly(s.slice(0, 10))
-          : (parseDate(s)?.toLocaleDateString() ?? s)
-      }
+      if (type === 'display') return displayDateTime(s)
 
       return s
     }

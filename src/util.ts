@@ -134,7 +134,7 @@ const defaultHumanExpiry = (year: number, month: number, day: number): string =>
 
 function resolveExpiryDate(tpk: TpkLike): string {
   const direct = tpk.expiry_date?.trim()
-  if (direct) return normalizeHumbleExpiry(direct)
+  if (direct) return normalizeHumbleDateTime(direct)
 
   const html = tpk.custom_instructions_html?.trim()
   if (!html) return ''
@@ -148,7 +148,7 @@ function resolveExpiryDate(tpk: TpkLike): string {
   return parseExpiryFromText(text)
 }
 
-function normalizeHumbleExpiry(s: string): string {
+function normalizeHumbleDateTime(s: string): string {
   // already has an offset or Z → keep
   if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s).toISOString()
 
@@ -293,6 +293,7 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => 
   return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
       const expiry = resolveExpiryDate(product)
+      const created = order.created ? normalizeHumbleDateTime(order.created) : ''
       const expiryMs = expiry ? Date.parse(expiry) : NaN
       const isExpired = product.is_expired || (!Number.isNaN(expiryMs) && expiryMs < Date.now())
 
@@ -309,7 +310,7 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => 
         is_expired: isExpired,
         expiry_date: expiry,
         steam_app_id: product.steam_app_id,
-        created: order.created || '',
+        created,
         keyindex: product.keyindex,
         owned: product.steam_app_id
           ? ownedApps.includes(product.steam_app_id)
