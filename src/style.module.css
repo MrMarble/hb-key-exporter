@@ -6,6 +6,10 @@ tr.expired {
   background-color: #f8d7da !important;
 }
 
+.date_time_part {
+  white-space: nowrap;
+}
+
 .select {
   padding: 5px 30px 5px 10px;
   border: 1px solid #ccc;
@@ -37,4 +41,36 @@ tr.expired {
 .row_actions {
   display: flex;
   gap: 2px;
+}
+
+.redeemed_actions {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.yes_no_badge {
+  display: inline-block;
+  min-width: 3ch;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.yes_badge {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
+
+.no_badge {
+  background-color: #e2e3e5;
+  color: #41464b;
+}
+
+.warning_badge {
+  background-color: #fff3cd;
+  color: #664d03;
 }

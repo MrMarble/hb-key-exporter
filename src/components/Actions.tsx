@@ -16,11 +16,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
   const exportASF = (products: Product[]) => {
     const keys = products
       .filter(
-        (product) =>
-          !product.is_gift &&
-          product.redeemed_key_val &&
-          !product.is_expired &&
-          product.key_type === 'steam'
+        (product) => !product.is_gift && product.redeemed_key_val && product.key_type === 'steam'
       )
       .map((product) => `${product.human_name}\t${product.redeemed_key_val}`)
       .join('\n')
@@ -49,6 +45,11 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
     return needsQuotes ? `"${s.replace(/"/g, '""')}"` : s
   }
 
+  const serializeField = (value: unknown): string => {
+    if (value == null) return ''
+    return String(value)
+  }
+
   const exportCSV = (products: Product[]) => {
     if (!products.length) {
       navigator.clipboard.writeText('')
@@ -56,12 +57,23 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
     }
 
     const delim = separator() || ','
-    const header = Object.keys(products[0])
+    const header = Object.keys(products[0]).flatMap((h) =>
+      h === 'redeemed_date' ? ['redeemed_date_label', 'redeemed_date_iso'] : [h]
+    )
+
+    const getCsvValue = (product: Product, header: string): unknown => {
+      if (header === 'redeemed_date_label') return product.redeemed_date?.label ?? ''
+      if (header === 'redeemed_date_iso') return product.redeemed_date?.iso ?? ''
+
+      return product[header as keyof Product]
+    }
 
     const lines = [
       header.map((h) => escapeCsvField(h, delim)).join(delim),
       ...products.map((product) =>
-        header.map((h) => escapeCsvField(product[h], delim)).join(delim)
+        header
+          .map((h) => escapeCsvField(serializeField(getCsvValue(product, h)), delim))
+          .join(delim)
       ),
     ]
 

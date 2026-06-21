@@ -14,4 +14,9 @@
 // @icon        https://www.google.com/s2/favicons?domain=humblebundle.com&sz=32
 // @downloadURL process.env.DOWNLOAD_URL
 // @homepageURL https://github.com/MrMarble/hb-key-exporter
+// @grant       GM_addStyle
+// @grant       GM_getResourceText
+// @grant       GM_xmlhttpRequest
+// @connect     store.steampowered.com
+// @connect     help.steampowered.com
 // ==/UserScript==

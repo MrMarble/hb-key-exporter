@@ -1,5 +1,5 @@
 import { onCleanup, onMount, type Setter } from 'solid-js'
-import { redeem, fetchActivatedDate, setActivatedDate, type Product } from '../util'
+import { redeem, fetchRedeemedDate, setRedeemedDate, type Product } from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
@@ -12,10 +12,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
   onMount(() => {
     console.debug('Mounting table with', products.length, 'products')
 
-    // Cast: TypeScript thinks render.date() isn't callable
-    type DtRender<T> = (data: unknown, type: string, row: T, meta: unknown) => string
-    const dtDate = DataTable.render.date() as unknown as DtRender<Product>
-
     const renderCellValue = (data: unknown, type: string): string | undefined => {
       if (data == null || data === '') return type === 'display' ? '-' : ''
       if (type !== 'display') return String(data)
@@ -25,13 +21,157 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const displayDash = (data: unknown, type: string): string =>
       !data ? (type === 'display' ? '-' : '') : String(data)
 
-    const displayDate = (data: unknown, type: string, row: Product, meta: unknown): string => {
+    const displayYesNoBadge = (
+      data: unknown,
+      type: string,
+      noClassName = styles.no_badge
+    ): string => {
+      const value = displayDash(data, type)
+
+      if (type !== 'display' || (value !== 'Yes' && value !== 'No')) {
+        return value
+      }
+
+      return hm('span', {
+        class: `${styles.yes_no_badge} ${value === 'Yes' ? styles.yes_badge : noClassName}`,
+        innerText: value,
+      }) as unknown as string
+    }
+
+    const displayDateOnly = (iso: string): string =>
+      iso.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => `${Number(m)}/${Number(d)}/${y}`)
+
+    const dateFormatter = new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    })
+
+    const timeFormatter = new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
+    const isUtcDateMarker = (value: string): boolean =>
+      /^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/.test(value)
+
+    const parseDate = (value: unknown): Date | null => {
+      const date = new Date(String(value))
+      return Number.isNaN(date.getTime()) ? null : date
+    }
+
+    const displayDateTime = (value: unknown): string => {
+      const s = String(value)
+
+      if (isUtcDateMarker(s)) return displayDateOnly(s.slice(0, 10))
+
+      const date = parseDate(s)
+      if (!date) return s
+
+      const datePart = dateFormatter.format(date)
+      const timePart = timeFormatter.format(date)
+
+      return [
+        `<span class="${styles.date_time_part}">${datePart}</span>`,
+        `<span class="${styles.date_time_part}">${timePart}</span>`,
+      ].join(' ')
+    }
+
+    const localDateKey = (value: unknown): string => {
+      const s = String(value)
+      if (isUtcDateMarker(s)) return s.slice(0, 10)
+
+      const date = parseDate(s)
+      if (!date) return s
+
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    const displayDate = (data: unknown, type: string): string => {
       if (!data) return type === 'display' ? '-' : ''
 
-      if (type === 'display') return dtDate(data, type, row, meta) // Formatted date for display
+      const s = String(data)
 
-      return String(data) // Raw ISO date for SearchBuilder filter + correct sorting
+      if (type === 'filter') return localDateKey(s)
+
+      if (type === 'display') return displayDateTime(s)
+
+      return s
     }
+
+    /** Steam Support URL for a given appId */
+    const steamSupportUrl = (appId: number) =>
+      `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`
+
+    const searchDateKey = (value: string): string => {
+      const s = value.trim()
+      if (!s) return ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+      return localDateKey(s)
+    }
+
+    type DateCondition = {
+      search?: (value: string, comparison: string[]) => boolean
+    }
+
+    const dateConditions = (
+      DataTable as typeof DataTable & {
+        Criteria?: {
+          dateConditions?: Record<string, DateCondition>
+        }
+      }
+    ).Criteria?.dateConditions
+
+    const setDateCondition = (
+      condition: string,
+      search: (value: string, comparison: string[]) => boolean
+    ): void => {
+      const dateCondition = dateConditions?.[condition]
+      if (dateCondition) dateCondition.search = search
+    }
+
+    setDateCondition('=', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left === right
+    })
+
+    setDateCondition('!=', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left !== right
+    })
+
+    setDateCondition('<', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left < right
+    })
+
+    setDateCondition('>', (value, comparison) => {
+      const left = searchDateKey(value)
+      const right = searchDateKey(comparison[0] ?? '')
+      return left !== '' && right !== '' && left >= right
+    })
+
+    setDateCondition('between', (value, comparison) => {
+      const left = searchDateKey(value)
+      const min = searchDateKey(comparison[0] ?? '')
+      const max = searchDateKey(comparison[1] ?? '')
+      return left !== '' && min !== '' && max !== '' && left >= min && left <= max
+    })
+
+    setDateCondition('!between', (value, comparison) => {
+      const left = searchDateKey(value)
+      const min = searchDateKey(comparison[0] ?? '')
+      const max = searchDateKey(comparison[1] ?? '')
+      return left !== '' && min !== '' && max !== '' && (left < min || left > max)
+    })
 
     let dt!: Api<Product>
     setDt(
@@ -112,48 +252,80 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               title: 'Revealed',
               data: (row: Product) => (row.is_gift || row.redeemed_key_val ? 'Yes' : 'No'),
               type: 'string-utf8',
+              render: (data, type) => displayYesNoBadge(data, type, styles.warning_badge),
             },
             {
               title: 'Owned',
               data: 'owned',
               type: 'string-utf8',
-              render: displayDash,
+              render: displayYesNoBadge,
             },
             { title: 'Purchased', data: 'created', type: 'date' },
             {
-              title: 'Activated',
+              // ---------------------------------------------------------------
+              // "Redeemed" column — Steam Support app-level data
+              // ---------------------------------------------------------------
+              title: 'Redeemed',
               data: null,
-              type: 'string-utf8',
-              render: (data, type, row) => {
-                if (!row.steam_app_id || row.owned !== 'Yes') {
-                  return type === 'display' ? '-' : ''
+              type: 'date',
+              className: 'dt-right',
+              render: (_, type, row) => {
+                // For SearchBuilder / sorting: emit only the ISO date string so
+                // DataTables never sees the display label text.
+                if (type !== 'display') {
+                  return row.redeemed_date?.iso ?? ''
                 }
 
-                if (row.activated_date) {
-                  return type === 'display' ? row.activated_date : row.activated_date
+                // ── Already fetched ─────────────────────────────────────────
+                if (row.redeemed_date) {
+                  const { label, iso } = row.redeemed_date
+                  return hm(
+                    'a',
+                    {
+                      href: steamSupportUrl(row.steam_app_id!),
+                      target: '_blank',
+                      title: 'Open Steam Support page',
+                    },
+                    [
+                      `${label}: `,
+                      hm('span', {
+                        class: styles.date_time_part,
+                        innerText: displayDateOnly(iso),
+                      }),
+                    ]
+                  ) as unknown as string
                 }
 
-                if (type !== 'display') return ''
+                // ── Not owned on this Steam account — nothing to show ───────────────────
+                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
 
-                const btn = hm(
+                // ── Not yet fetched: show a fetch button ────────────────────────────────
+                const fetchBtn = hm(
                   'button',
                   {
                     class: styles.btn,
                     type: 'button',
-                    title: 'Fetch activation date from Steam',
+                    title: 'Fetch redeemed date from Steam Support',
                     onclick: async (e: MouseEvent) => {
                       const target = e.currentTarget as HTMLButtonElement
                       target.disabled = true
                       target.innerHTML = '<i class="hb hb-spin hb-spinner"></i>'
                       try {
-                        const date = await fetchActivatedDate(row.steam_app_id!)
-                        if (date) {
-                          setActivatedDate(row.steam_app_id!, date)
-                          row.activated_date = date
-                          target.parentElement!.textContent = date
-                          dt.rows().invalidate().draw(false)
+                        const result = await fetchRedeemedDate(row.steam_app_id!)
+                        if (result) {
+                          const appId = row.steam_app_id!
+
+                          setRedeemedDate(appId, result)
+
+                          for (const product of products) {
+                            if (product.steam_app_id === appId) {
+                              product.redeemed_date = result
+                            }
+                          }
+
+                          dt.rows().invalidate('data').draw('page')
                         } else {
-                          showToast('No activation date found')
+                          showToast('No redeemed date found on Steam Support page')
                           target.disabled = false
                           target.innerHTML = '<i class="hb hb-clock"></i>'
                         }
@@ -166,7 +338,24 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   },
                   hm('i', { class: 'hb hb-clock' })
                 )
-                return btn as unknown as string
+
+                // ── Not yet fetched: show Steam Support link + fetch button ──────────────
+                const supportLink = hm(
+                  'a',
+                  {
+                    class: styles.btn,
+                    href: steamSupportUrl(row.steam_app_id),
+                    target: '_blank',
+                    title: 'Open Steam Support page',
+                    style: 'margin-right:2px;',
+                  },
+                  hm('i', { class: 'hb hb-steam' })
+                )
+
+                return hm('span', { class: styles.redeemed_actions }, [
+                  supportLink,
+                  fetchBtn,
+                ]) as unknown as string
               },
             },
             { title: 'Exp. Date', data: 'expiry_date', type: 'date' },
@@ -195,12 +384,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   )
                 }
 
-                if (
-                  row.redeemed_key_val &&
-                  !row.is_gift &&
-                  !row.is_expired &&
-                  row.key_type === 'steam'
-                ) {
+                if (row.redeemed_key_val && !row.is_gift && row.key_type === 'steam') {
                   actions.push(
                     hm(
                       'a',
@@ -287,9 +471,37 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         }))
     )
 
+    const container = dt.table().container() as HTMLElement
+
+    let pagingTop: number | null = null
+
+    const getPaging = () => container.querySelector<HTMLElement>('.dt-paging')
+
+    const rememberPagingTop = () => {
+      const rect = getPaging()?.getBoundingClientRect()
+
+      pagingTop = rect && rect.bottom > 0 && rect.top < window.innerHeight ? rect.top : null
+    }
+
+    const restorePagingTop = () => {
+      if (pagingTop == null) return
+
+      const previousTop = pagingTop
+      pagingTop = null
+
+      requestAnimationFrame(() => {
+        const nextTop = getPaging()?.getBoundingClientRect().top
+        if (nextTop != null) {
+          window.scrollBy({ top: nextTop - previousTop, behavior: 'auto' })
+        }
+      })
+    }
+
+    dt.on('page', rememberPagingTop)
+    dt.on('draw', restorePagingTop)
+
     // Warnings when selecting certain column filters
 
-    const container = dt.table().container() as HTMLElement
     const searchBuilderRoot = container.querySelector('.dtsb-searchBuilder') as HTMLElement | null
 
     type WarningRule = {
@@ -312,9 +524,15 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const warnings: WarningRule[] = [
       {
         element: makeWarning(
-          '⚠️ "Owned" column: Keys containing packages can incorrectly appear owned when only the base game is owned. This column may also contain many null values.'
+          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because only one app ID is returned by Humble\'s API. This column may also contain many null values.'
         ),
         show: (selectedColumns) => selectedColumns.includes('Owned'),
+      },
+      {
+        element: makeWarning(
+          '⚠️ "Redeemed" column uses Steam Support app ID data, which may be inaccurate when the key\'s package (sub ID) contains more than one app ID.'
+        ),
+        show: (selectedColumns) => selectedColumns.includes('Redeemed'),
       },
     ]
 
@@ -344,6 +562,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     }
 
     onCleanup(() => {
+      dt.off('page', rememberPagingTop)
+      dt.off('draw', restorePagingTop)
+
       searchBuilderRoot?.removeEventListener('change', refreshWarnings)
       observer?.disconnect()
       for (const warning of warnings) warning.element.remove()

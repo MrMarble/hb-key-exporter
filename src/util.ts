@@ -27,6 +27,14 @@ export interface Order {
   }
 }
 
+/** Structured result from Steam Support for the Redeemed column. */
+export interface RedeemedDate {
+  /** "Activated" | "Purchased" — the label shown on Steam Support */
+  label: 'Activated' | 'Purchased'
+  /** ISO 8601 date-only string, e.g. "2023-04-15", used for sorting/filtering */
+  iso: string
+}
+
 export interface Product {
   machine_name: string
   category: 'Store' | 'Bundle' | 'Other' | 'Choice'
@@ -43,7 +51,8 @@ export interface Product {
   steam_app_id?: number
   created: string
   keyindex?: number
-  activated_date?: string
+  /** Stored structured result from Steam Support */
+  redeemed_date?: RedeemedDate
 }
 
 type TpkLike = Pick<
@@ -85,26 +94,47 @@ const TZ_ALIASES: Array<[string, string]> = [
 
 const MONTHS: Record<string, number> = {
   january: 1,
+  jan: 1,
   february: 2,
+  feb: 2,
   march: 3,
+  mar: 3,
   april: 4,
+  apr: 4,
   may: 5,
   june: 6,
+  jun: 6,
   july: 7,
+  jul: 7,
   august: 8,
+  aug: 8,
   september: 9,
+  sep: 9,
+  sept: 9,
   october: 10,
+  oct: 10,
   november: 11,
+  nov: 11,
   december: 12,
+  dec: 12,
 }
 
 const DEFAULT_HUMAN_TZ = 'America/Los_Angeles'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
+const utcDateMarker = (year: number, month: number, day: number): string =>
+  new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString()
+
+const defaultHumanExpiry = (year: number, month: number, day: number): string =>
+  zonedTimeToUtc(
+    { year, month, day, hour: 23, minute: 59, second: 59 },
+    DEFAULT_HUMAN_TZ
+  ).toISOString()
+
 function resolveExpiryDate(tpk: TpkLike): string {
   const direct = tpk.expiry_date?.trim()
-  if (direct) return normalizeHumbleExpiry(direct)
+  if (direct) return normalizeHumbleDateTime(direct)
 
   const html = tpk.custom_instructions_html?.trim()
   if (!html) return ''
@@ -118,20 +148,20 @@ function resolveExpiryDate(tpk: TpkLike): string {
   return parseExpiryFromText(text)
 }
 
-function normalizeHumbleExpiry(s: string): string {
+function normalizeHumbleDateTime(s: string): string {
   // already has an offset or Z → keep
   if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s).toISOString()
 
-  // date-only YYYY-MM-DD → interpret as PT end-of-day, convert to UTC ISO
+  // API date-only YYYY-MM-DD → encode as a UTC midnight datetime
   const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (d) {
     const year = Number(d[1]),
       month = Number(d[2]),
       day = Number(d[3])
-    return new Date(Date.UTC(year, month - 1, day, 23, 59, 59)).toISOString()
+    return utcDateMarker(year, month, day)
   }
 
-  // "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss" → interpret as PT, convert
+  // API datetime without an offset → treat as UTC and normalize
   const dt = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/)
   if (dt) {
     const year = Number(dt[1]),
@@ -160,13 +190,15 @@ function parseExpiryFromText(text: string): string {
   const day = Number(dayStr)
   const year = Number(yearStr)
 
-  // No time provided → return ISO date only (don’t invent precision)
-  if (!tailRaw) return `${year}-${pad2(month)}-${pad2(day)}`
+  // No time provided → assume end of day in Pacific and convert to UTC
+  if (!tailRaw) return defaultHumanExpiry(year, month, day)
 
   // Parse time + optional timezone phrase/abbr
   const t = tailRaw.trim()
   const tm = t.match(/(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)\s*(.*)?/i)
-  if (!tm) return `${year}-${pad2(month)}-${pad2(day)}`
+
+  // No time provided → assume end of day in Pacific and convert to UTC
+  if (!tm) return defaultHumanExpiry(year, month, day)
 
   const [, hh, mm = '0', ss = '0', ampm, tzRest = ''] = tm
   let hour = Number(hh)
@@ -177,7 +209,7 @@ function parseExpiryFromText(text: string): string {
   if (hour === 12) hour = isPM ? 12 : 0
   else if (isPM) hour += 12
 
-  const timeZone = pickIanaTimeZone(tzRest) // defaults to UTC if unknown/empty
+  const timeZone = pickIanaTimeZone(tzRest) // defaults to Pacific if unknown/empty
   const utc = zonedTimeToUtc({ year, month, day, hour, minute, second }, timeZone)
   return utc.toISOString()
 }
@@ -256,11 +288,12 @@ export const loadOrders = () =>
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
 export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => {
-  const activatedMap = loadActivatedDatesMap()
+  const redeemedMap = loadRedeemedDatesMap()
 
   return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
       const expiry = resolveExpiryDate(product)
+      const created = order.created ? normalizeHumbleDateTime(order.created) : ''
       const expiryMs = expiry ? Date.parse(expiry) : NaN
       const isExpired = product.is_expired || (!Number.isNaN(expiryMs) && expiryMs < Date.now())
 
@@ -277,15 +310,15 @@ export const getProducts = (orders: Order[], ownedApps: number[]): Product[] => 
         is_expired: isExpired,
         expiry_date: expiry,
         steam_app_id: product.steam_app_id,
-        created: order.created || '',
+        created,
         keyindex: product.keyindex,
         owned: product.steam_app_id
           ? ownedApps.includes(product.steam_app_id)
             ? 'Yes'
             : 'No'
           : '',
-        activated_date: product.steam_app_id
-          ? (activatedMap[String(product.steam_app_id)] ?? undefined)
+        redeemed_date: product.steam_app_id
+          ? (redeemedMap[String(product.steam_app_id)] ?? undefined)
           : undefined,
       }
     })
@@ -330,7 +363,6 @@ const fetchOwnedApps = async (): Promise<number[]> =>
           reject(new Error(`HTTP ${res.status}`))
           return
         }
-
         resolve(res)
       },
       onerror: (err) => {
@@ -353,43 +385,87 @@ const fetchOwnedApps = async (): Promise<number[]> =>
       return []
     })
 
-const ACTIVATED_DATES_KEY = 'hb-key-exporter:activated-dates'
+// ---------------------------------------------------------------------------
+// Redeemed date — Steam Support app-level data
+// ---------------------------------------------------------------------------
 
-const loadActivatedDatesMap = (): Record<string, string> => {
+const REDEEMED_DATES_KEY = 'hb-key-exporter:redeemed-dates'
+
+const loadRedeemedDatesMap = (): Record<string, RedeemedDate> => {
   try {
-    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
+    const data = localStorage.getItem(REDEEMED_DATES_KEY)
     return data ? JSON.parse(data) : {}
   } catch {
     return {}
   }
 }
 
-export const setActivatedDate = (appId: number, date: string): void => {
+export const setRedeemedDate = (appId: number, entry: RedeemedDate): void => {
   try {
-    const data = localStorage.getItem(ACTIVATED_DATES_KEY)
-    const map: Record<string, string> = data ? JSON.parse(data) : {}
-    map[String(appId)] = date
-    localStorage.setItem(ACTIVATED_DATES_KEY, JSON.stringify(map))
+    const data = localStorage.getItem(REDEEMED_DATES_KEY)
+    const map: Record<string, RedeemedDate> = data ? JSON.parse(data) : {}
+    map[String(appId)] = entry
+    localStorage.setItem(REDEEMED_DATES_KEY, JSON.stringify(map))
   } catch (e) {
-    console.error('Failed to store activated date:', e)
+    console.error('Failed to store redeemed date:', e)
   }
 }
 
-export const fetchActivatedDate = async (appId: number): Promise<string | null> => {
+/**
+ * Parse a human-readable Steam date string like "4 Apr, 2023" → "YYYY-MM-DD".
+ * Falls back to the original string (untouched) if parsing fails, so the
+ * caller can still surface something useful in the display label.
+ */
+function parseSteamDateToIso(raw: string): string {
+  const m = raw.trim().match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:,\s*(\d{4}))?\b/)
+  if (!m) return ''
+
+  const month = MONTHS[m[1].toLowerCase()]
+  const day = Number(m[2])
+  const year = m[3] ? Number(m[3]) : new Date().getFullYear()
+
+  if (!month || !day || day < 1 || day > 31) return ''
+
+  return `${year}-${pad2(month)}-${pad2(day)}`
+}
+
+export const fetchRedeemedDate = async (appId: number): Promise<RedeemedDate | null> => {
   const html = await new Promise<string>((resolve, reject) => {
     GM_xmlhttpRequest({
       url: `https://help.steampowered.com/en/wizard/HelpWithGame?appid=${appId}`,
       method: 'GET',
       timeout: 10000,
       onload: (res) => {
+        if (res.status === 401 || res.status === 403) {
+          reject(
+            new Error(
+              `Steam login required (HTTP ${res.status}). ` +
+                `Open the Steam Support page for this app, log in, then try again.`
+            )
+          )
+          return
+        }
         if (res.status !== 200) {
-          reject(new Error(`HTTP ${res.status}`))
+          reject(
+            new Error(
+              `Steam Support returned HTTP ${res.status}. ` +
+                `This may be a missing @connect permission, a network issue, ` +
+                `or Steam blocking the request. Check the browser console.`
+            )
+          )
           return
         }
         resolve(res.responseText)
       },
-      onerror: () => reject(new Error('Request failed')),
-      ontimeout: () => reject(new Error('Request timed out')),
+      onerror: () =>
+        reject(
+          new Error(
+            `Request failed. Possible causes: the @connect help.steampowered.com permission ` +
+              `has not been granted yet (approve it in your userscript manager), ` +
+              `a network/CORS error, or Steam is temporarily unavailable.`
+          )
+        ),
+      ontimeout: () => reject(new Error('Request timed out after 10 s')),
     })
   })
 
@@ -400,10 +476,19 @@ export const fetchActivatedDate = async (appId: number): Promise<string | null> 
     const divs = accountDetails.querySelectorAll('div')
     for (const div of divs) {
       const label = div.querySelector('.help_highlight_text')
-      const text = label?.textContent?.trim() ?? ''
-      if (text === 'Activated:' || text === 'Purchased:') {
+      const labelText = label?.textContent?.trim() ?? ''
+      if (labelText === 'Activated:' || labelText === 'Purchased:') {
         const value = div.querySelector('.help_lowlight_text')
-        if (value?.textContent) return value.textContent.trim()
+        const raw = value?.textContent?.trim()
+        if (raw) {
+          const iso = parseSteamDateToIso(raw)
+          if (iso) {
+            return {
+              label: labelText === 'Activated:' ? 'Activated' : 'Purchased',
+              iso,
+            }
+          }
+        }
       }
     }
   }
