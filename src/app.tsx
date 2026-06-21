@@ -39,7 +39,10 @@ export function App() {
     checkSteamAccountTimer = window.setTimeout(async () => {
       const account = await fetchSteamAccountId()
 
-      if (!account.loadFailed && account.steamId !== steamId()) {
+      if (
+        (!account.loadFailed && account.steamId !== steamId()) ||
+        (account.loggedOut && steamId())
+      ) {
         clearSteamNotices()
         refreshProducts()
       }
@@ -57,6 +60,11 @@ export function App() {
   const toggleOpen = () => {
     const next = !open()
     setOpen(next)
+
+    if (next && (pendingSteamAccountNotice() || pendingSteamOwnedNotice())) {
+      refreshProducts()
+      return
+    }
 
     if (next) {
       checkSteamAccountChanged()

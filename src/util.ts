@@ -397,6 +397,7 @@ const requestSteam = (
 type SteamAccountIdResult = {
   steamId: string | null
   loadFailed: boolean
+  loggedOut: boolean
 }
 
 export const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
@@ -410,6 +411,7 @@ export const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
         return {
           steamId,
           loadFailed: false,
+          loggedOut: false,
         }
       }
 
@@ -417,12 +419,14 @@ export const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
         return {
           steamId: (STEAM_ID64_BASE + BigInt(accountId)).toString(),
           loadFailed: false,
+          loggedOut: false,
         }
       }
 
       return {
         steamId: null,
         loadFailed: true,
+        loggedOut: true,
       }
     })
     .catch((err) => {
@@ -430,6 +434,7 @@ export const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
       return {
         steamId: null,
         loadFailed: true,
+        loggedOut: false,
       }
     })
 
@@ -879,7 +884,11 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
 
   ownedAppsLiveLoadFailed = true
 
-  if (!refresh && cache && (!steamId || steamId === cache.steamId)) {
+  if (
+    !refresh &&
+    cache &&
+    (steamId === cache.steamId || (!steamId && steamAccount.loadFailed && !steamAccount.loggedOut))
+  ) {
     ownedApps = cache.apps
     ownedAppsLoaded = true
     ownedAppsUsedCache = true
