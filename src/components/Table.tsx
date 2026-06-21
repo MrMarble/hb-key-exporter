@@ -209,6 +209,11 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     setDt(
       () =>
         (dt = new DataTable<Product>(tableRef, {
+          pageLength: 10,
+          lengthMenu: [
+            [10, 25, 50, 100, 500, 1000, 5000, -1],
+            [10, 25, 50, 100, 500, '1,000', '5,000', 'All'],
+          ],
           columnDefs: [
             {
               targets: [7, 9],
@@ -356,7 +361,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                             }
                           }
 
-                          dt.rows().invalidate('data').draw('page')
+                          dt.rows((_idx, product) => product.steam_app_id === appId)
+                            .invalidate('data')
+                            .draw('page')
                         } else {
                           showSteamSupportNotice(row.steam_app_id!)
                           target.disabled = false

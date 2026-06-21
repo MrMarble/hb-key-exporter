@@ -19,6 +19,24 @@
   margin-bottom: 15px;
 }
 
+#hb_extractor-container .dt-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+#hb_extractor-table {
+  width: 100% !important;
+}
+
+#hb_extractor-table thead th {
+  white-space: nowrap;
+}
+
+#hb_extractor-table tbody td:nth-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 #hb_extractor-container details {
   display: unset;
   width: 100%;
