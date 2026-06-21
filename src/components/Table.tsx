@@ -4,6 +4,8 @@ import {
   redeem,
   fetchRedeemedDate,
   setRedeemedDate,
+  showErrorToast,
+  showFlashToast,
   showSteamSupportNotice,
   type Product,
 } from '../util'
@@ -11,7 +13,6 @@ import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
-import { showToast } from '@violentmonkey/ui'
 
 export function Table({ products, setDt }: { products: Product[]; setDt: Setter<Api<Product>> }) {
   let tableRef!: HTMLTableElement
@@ -239,7 +240,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   'i',
                   {
                     class: `hb hb-key hb-${data}`,
-                    onclick: () => showToast(JSON.stringify(row, null, 2)),
+                    onclick: () => showFlashToast(JSON.stringify(row, null, 2)),
                   },
                   hm('span', { class: 'hidden', innerText: String(data) })
                 )
@@ -371,7 +372,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         }
                       } catch (err) {
                         showSteamSupportNotice(row.steam_app_id!)
-                        showToast(err instanceof Error ? err.message : 'Failed to fetch')
+                        showErrorToast(err, 'Failed to fetch')
                         target.disabled = false
                         target.innerHTML = '<i class="hb hb-clock"></i>'
                       }
@@ -417,7 +418,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         type: 'button',
                         onclick: () => {
                           navigator.clipboard.writeText(row.redeemed_key_val)
-                          showToast('Copied to clipboard')
+                          showFlashToast('Copied to clipboard')
                         },
                       },
                       hm('i', { class: 'hb hb-key hb-clipboard' })
@@ -464,9 +465,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                           try {
                             const key = await redeem(row)
                             await navigator.clipboard.writeText(key)
-                            showToast('Key copied to clipboard')
+                            showFlashToast('Key copied to clipboard')
                           } catch (error) {
-                            showToast(error instanceof Error ? error.message : String(error))
+                            showErrorToast(error)
                           }
                         },
                       },
@@ -481,9 +482,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                           try {
                             const link = await redeem(row, true)
                             await navigator.clipboard.writeText(link)
-                            showToast('Link copied to clipboard')
+                            showFlashToast('Link copied to clipboard')
                           } catch (error) {
-                            showToast(error instanceof Error ? error.message : String(error))
+                            showErrorToast(error)
                           }
                         },
                       },

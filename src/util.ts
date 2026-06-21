@@ -479,6 +479,53 @@ const fetchOwnedApps = async (): Promise<number[] | null> =>
       return null
     })
 
+type FlashToastType = 'default' | 'error'
+
+const getFlashToastDuration = (message: string): number => {
+  const trimmed = message.trim()
+  const words = trimmed ? trimmed.split(/\s+/).length : 0
+
+  return Math.min(8000, Math.max(2500, 1500 + words * 250 + trimmed.length * 8))
+}
+
+let flashToastEl: HTMLElement | null = null
+let flashToastTimer: number | undefined
+
+export const showFlashToast = (message: string, type: FlashToastType = 'default'): void => {
+  if (!flashToastEl) {
+    flashToastEl = document.createElement('div')
+    flashToastEl.id = 'hb_extractor-flash-toast'
+    document.body.append(flashToastEl)
+  }
+
+  flashToastEl.textContent = message
+  flashToastEl.hidden = false
+  flashToastEl.className = `hb_extractor-flash-toast hb_extractor-flash-toast_${type}`
+  flashToastEl.setAttribute('role', type === 'error' ? 'alert' : 'status')
+
+  void flashToastEl.offsetWidth
+  flashToastEl.classList.add('hb_extractor-flash-toast_flash')
+
+  if (flashToastTimer !== undefined) {
+    window.clearTimeout(flashToastTimer)
+  }
+
+  flashToastTimer = window.setTimeout(() => {
+    if (flashToastEl) {
+      flashToastEl.hidden = true
+    }
+
+    flashToastTimer = undefined
+  }, getFlashToastDuration(message))
+}
+
+export const showErrorToast = (error: unknown, fallback = 'Failed'): void => {
+  const message =
+    error instanceof Error ? error.message || fallback : error == null ? fallback : String(error)
+
+  showFlashToast(message, 'error')
+}
+
 type SteamNoticeLink = {
   text: string
   href: string
