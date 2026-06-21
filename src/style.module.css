@@ -10,6 +10,15 @@ tr.expired {
   white-space: nowrap;
 }
 
+.header_note {
+  margin-left: 3px;
+  color: #2f6f9f;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 1px;
+  cursor: help;
+}
+
 .select {
   padding: 5px 30px 5px 10px;
   border: 1px solid #ccc;

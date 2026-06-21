@@ -301,7 +301,7 @@ export function Table({
               render: (data, type) => displayYesNoBadge(data, type, styles.warning_badge),
             },
             {
-              title: 'Owned',
+              title: `Owned <span class="${styles.header_note}" title="Relies on the Steam app ID returned by Humble's API and may be inaccurate for package/sub keys.">ⓘ</span>`,
               data: 'owned',
               type: 'string-utf8',
               render: displayOwned,
@@ -311,7 +311,7 @@ export function Table({
               // ---------------------------------------------------------------
               // "Redeemed" column — Steam Support app-level data
               // ---------------------------------------------------------------
-              title: 'Redeemed',
+              title: `Redeemed <span class="${styles.header_note}" title="Uses Steam Support app ID data and may be inaccurate for package/sub keys.">ⓘ</span>`,
               data: null,
               type: 'date',
               className: 'dt-right',
