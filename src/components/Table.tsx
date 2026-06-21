@@ -275,7 +275,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               },
             },
             {
-              title: 'Gift',
+              title: 'Format',
               data: 'type',
               type: 'string-utf8',
               render: displayDash,
