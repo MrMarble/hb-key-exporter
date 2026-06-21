@@ -1,7 +1,9 @@
-import { createResource, createSignal, Show } from 'solid-js'
+import { createResource, createSignal, onCleanup, onMount, Show } from 'solid-js'
 import {
   clearSteamAccountNotice,
+  clearSteamNotices,
   clearSteamOwnedNotice,
+  fetchSteamAccountId,
   getProducts,
   loadOrders,
   loadOwnedApps,
@@ -21,9 +23,27 @@ export function App() {
   const [pendingSteamOwnedNoticeUsedCache, setPendingSteamOwnedNoticeUsedCache] =
     createSignal(false)
   const [pendingSteamAccountNotice, setPendingSteamAccountNotice] = createSignal(false)
+  const [steamId, setSteamId] = createSignal<string | null>(null)
+
+  let checkSteamAccountTimer: number | undefined
 
   const refreshAfterSteamPageOpen = () => {
     window.setTimeout(() => refreshProducts(), 3000)
+  }
+
+  const checkSteamAccountChanged = () => {
+    if (!open()) return
+
+    window.clearTimeout(checkSteamAccountTimer)
+
+    checkSteamAccountTimer = window.setTimeout(async () => {
+      const account = await fetchSteamAccountId()
+
+      if (!account.loadFailed && account.steamId !== steamId()) {
+        clearSteamNotices()
+        refreshProducts()
+      }
+    }, 750)
   }
 
   const showOwnedNotice = (usedCache: boolean) => {
@@ -37,6 +57,10 @@ export function App() {
   const toggleOpen = () => {
     const next = !open()
     setOpen(next)
+
+    if (next) {
+      checkSteamAccountChanged()
+    }
 
     if (next && pendingSteamAccountNotice()) {
       setPendingSteamAccountNotice(false)
@@ -54,6 +78,7 @@ export function App() {
       console.debug('Loading products...')
       const orders = loadOrders()
       const owned = await loadOwnedApps(info.refetching)
+      setSteamId(owned.steamId)
 
       if (owned.accountLoadFailed) {
         if (open()) {
@@ -86,11 +111,27 @@ export function App() {
         owned.apps?.length ?? 'unavailable',
         'owned apps'
       )
-      return getProducts(orders, owned.apps)
+      return getProducts(orders, owned.apps, owned.steamId)
     }
   )
 
   const [dt, setDt] = createSignal<Api<Product> | null>(null)
+
+  onMount(() => {
+    const checkSteamAccountChangedAfterVisibility = () => {
+      if (!document.hidden) checkSteamAccountChanged()
+    }
+
+    window.addEventListener('focus', checkSteamAccountChanged)
+    document.addEventListener('visibilitychange', checkSteamAccountChangedAfterVisibility)
+
+    onCleanup(() => {
+      window.clearTimeout(checkSteamAccountTimer)
+      window.removeEventListener('focus', checkSteamAccountChanged)
+      document.removeEventListener('visibilitychange', checkSteamAccountChangedAfterVisibility)
+    })
+  })
+
   console.debug('App loaded')
 
   return (
@@ -108,8 +149,8 @@ export function App() {
         <div style={{ display: 'flex', 'justify-content': 'end', 'align-items': 'center' }}>
           <Refresh refresh={refreshProducts} />
         </div>
-        <Show when={products()?.length} fallback={<p>Loading products...</p>}>
-          <Table products={products()} setDt={setDt} />
+        <Show when={products()} keyed fallback={<p>Loading products...</p>}>
+          {(loadedProducts) => <Table products={loadedProducts} steamId={steamId} setDt={setDt} />}
         </Show>
         <Actions dt={dt} />
       </div>

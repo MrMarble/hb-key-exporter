@@ -1,4 +1,4 @@
-import { onCleanup, onMount, type Setter } from 'solid-js'
+import { onCleanup, onMount, type Accessor, type Setter } from 'solid-js'
 import {
   clearSteamSupportNotice,
   redeem,
@@ -14,7 +14,15 @@ import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
 
-export function Table({ products, setDt }: { products: Product[]; setDt: Setter<Api<Product>> }) {
+export function Table({
+  products,
+  steamId,
+  setDt,
+}: {
+  products: Product[]
+  steamId: Accessor<string | null>
+  setDt: Setter<Api<Product>>
+}) {
   let tableRef!: HTMLTableElement
 
   onMount(() => {
@@ -314,13 +322,16 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   return row.redeemed_date?.iso ?? ''
                 }
 
+                // ── Not owned on this Steam account — nothing to show ───────────────────
+                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
+
                 // ── Already fetched ─────────────────────────────────────────
                 if (row.redeemed_date) {
                   const { label, iso } = row.redeemed_date
                   return hm(
                     'a',
                     {
-                      href: steamSupportUrl(row.steam_app_id!),
+                      href: steamSupportUrl(row.steam_app_id),
                       target: '_blank',
                       title: 'Open Steam Support page',
                     },
@@ -333,9 +344,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                     ]
                   ) as unknown as string
                 }
-
-                // ── Not owned on this Steam account — nothing to show ───────────────────
-                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
 
                 // ── Not yet fetched: show a fetch button ────────────────────────────────
                 const fetchBtn = hm(
@@ -353,7 +361,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         if (result) {
                           const appId = row.steam_app_id!
 
-                          setRedeemedDate(appId, result)
+                          setRedeemedDate(appId, result, steamId())
                           clearSteamSupportNotice(appId)
 
                           for (const product of products) {
@@ -610,6 +618,8 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       searchBuilderRoot?.removeEventListener('change', refreshWarnings)
       observer?.disconnect()
       for (const warning of warnings) warning.element.remove()
+
+      dt.destroy()
     })
   })
   console.debug('Table Loaded')

@@ -287,8 +287,12 @@ export const loadOrders = () =>
     .map((key) => JSON.parse(LZString.decompressFromUTF16(localStorage.getItem(key))) as Order)
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
-export const getProducts = (orders: Order[], ownedApps: number[] | null): Product[] => {
-  const redeemedMap = loadRedeemedDatesMap()
+export const getProducts = (
+  orders: Order[],
+  ownedApps: number[] | null,
+  steamId: string | null
+): Product[] => {
+  const redeemedMap = loadRedeemedDatesMap(steamId)
 
   return orders.flatMap((order) =>
     order.tpkd_dict.all_tpks.map((product) => {
@@ -300,6 +304,13 @@ export const getProducts = (orders: Order[], ownedApps: number[] | null): Produc
           : undefined
       const expiryMs = expiry ? Date.parse(expiry) : NaN
       const isExpired = product.is_expired || (!Number.isNaN(expiryMs) && expiryMs < Date.now())
+      const owned: Product['owned'] = steamAppId
+        ? ownedApps === null
+          ? ''
+          : ownedApps.includes(steamAppId)
+            ? 'Yes'
+            : 'No'
+        : ''
 
       return {
         machine_name: product.machine_name || '',
@@ -316,14 +327,11 @@ export const getProducts = (orders: Order[], ownedApps: number[] | null): Produc
         steam_app_id: steamAppId,
         created,
         keyindex: product.keyindex,
-        owned: steamAppId
-          ? ownedApps === null
-            ? ''
-            : ownedApps.includes(steamAppId)
-              ? 'Yes'
-              : 'No'
-          : '',
-        redeemed_date: steamAppId ? (redeemedMap[String(steamAppId)] ?? undefined) : undefined,
+        owned,
+        redeemed_date:
+          steamAppId && owned === 'Yes'
+            ? (redeemedMap[String(steamAppId)] ?? undefined)
+            : undefined,
       }
     })
   )
@@ -391,7 +399,7 @@ type SteamAccountIdResult = {
   loadFailed: boolean
 }
 
-const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
+export const fetchSteamAccountId = async (): Promise<SteamAccountIdResult> =>
   requestSteam(`https://store.steampowered.com/account/?_=${Date.now()}`)
     .then((res) => {
       const html = res.responseText ?? ''
@@ -595,6 +603,12 @@ const clearSteamNotice = (id: string): void => {
   document.getElementById(id)?.remove()
 }
 
+export const clearSteamNotices = (): void => {
+  document
+    .querySelectorAll<HTMLElement>('[id^="hb_extractor-notice-steam-"]')
+    .forEach((notice) => notice.remove())
+}
+
 export const showSteamOwnedNotice = (usedCache: boolean, onOpen?: () => void): void => {
   showSteamNotice(
     'hb_extractor-notice-steam-owned-apps',
@@ -660,23 +674,59 @@ export const clearSteamSupportNotice = (appId: number): void => {
 // Redeemed date — Steam Support app-level data
 // ---------------------------------------------------------------------------
 
-const REDEEMED_DATES_KEY = 'hb-key-exporter:redeemed-dates'
+const REDEEMED_DATES_LEGACY_KEY = 'hb-key-exporter:redeemed-dates'
+const REDEEMED_DATES_KEY_PREFIX = 'hb-key-exporter:redeemed-dates:v2'
 
-const loadRedeemedDatesMap = (): Record<string, RedeemedDate> => {
+let redeemedDatesLegacyCacheCleared = false
+
+const clearLegacyRedeemedDatesCache = (): void => {
+  if (redeemedDatesLegacyCacheCleared) return
+
+  redeemedDatesLegacyCacheCleared = true
+
   try {
-    const data = localStorage.getItem(REDEEMED_DATES_KEY)
+    localStorage.removeItem(REDEEMED_DATES_LEGACY_KEY)
+
+    for (const key of Object.keys(localStorage)) {
+      if (/^hb-key-exporter:redeemed-dates:\d+$/.test(key)) {
+        localStorage.removeItem(key)
+      }
+    }
+  } catch (e) {
+    console.error('Failed to clear legacy redeemed dates cache:', e)
+  }
+}
+
+const getRedeemedDatesKey = (steamId: string): string => `${REDEEMED_DATES_KEY_PREFIX}:${steamId}`
+
+const loadRedeemedDatesMap = (steamId: string | null): Record<string, RedeemedDate> => {
+  clearLegacyRedeemedDatesCache()
+
+  if (!steamId) return {}
+
+  try {
+    const data = localStorage.getItem(getRedeemedDatesKey(steamId))
     return data ? JSON.parse(data) : {}
   } catch {
     return {}
   }
 }
 
-export const setRedeemedDate = (appId: number, entry: RedeemedDate): void => {
+export const setRedeemedDate = (
+  appId: number,
+  entry: RedeemedDate,
+  steamId: string | null
+): void => {
+  clearLegacyRedeemedDatesCache()
+
+  if (!steamId) return
+
   try {
-    const data = localStorage.getItem(REDEEMED_DATES_KEY)
+    const key = getRedeemedDatesKey(steamId)
+    const data = localStorage.getItem(key)
     const map: Record<string, RedeemedDate> = data ? JSON.parse(data) : {}
     map[String(appId)] = entry
-    localStorage.setItem(REDEEMED_DATES_KEY, JSON.stringify(map))
+    localStorage.setItem(key, JSON.stringify(map))
   } catch (e) {
     console.error('Failed to store redeemed date:', e)
   }
@@ -772,6 +822,7 @@ export type OwnedAppsResult = {
   liveLoadFailed: boolean
   usedCache: boolean
   accountLoadFailed: boolean
+  steamId: string | null
 }
 
 let ownedApps: number[] | null = null
@@ -779,6 +830,7 @@ let ownedAppsLoaded = false
 let ownedAppsLiveLoadFailed = false
 let ownedAppsUsedCache = false
 let steamAccountLoadFailed = false
+let currentSteamId: string | null = null
 
 export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedAppsResult> => {
   if (!refresh && ownedAppsLoaded) {
@@ -787,6 +839,7 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
       liveLoadFailed: ownedAppsLiveLoadFailed,
       usedCache: ownedAppsUsedCache,
       accountLoadFailed: steamAccountLoadFailed,
+      steamId: currentSteamId,
     }
   }
 
@@ -796,6 +849,7 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
   console.debug('Steam account ID:', steamAccount ?? 'unavailable')
   console.debug('Steam steam ID:', steamId ?? 'unavailable')
   steamAccountLoadFailed = steamAccount.loadFailed
+  currentSteamId = steamId
 
   if (steamId && cache?.steamId && steamId !== cache.steamId) {
     clearOwnedAppsCache()
@@ -819,6 +873,7 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
       liveLoadFailed: false,
       usedCache: false,
       accountLoadFailed: steamAccountLoadFailed,
+      steamId,
     }
   }
 
@@ -836,6 +891,7 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
       liveLoadFailed: true,
       usedCache: true,
       accountLoadFailed: steamAccountLoadFailed,
+      steamId,
     }
   }
 
@@ -847,5 +903,6 @@ export const loadOwnedApps = async (refresh: boolean = false): Promise<OwnedApps
     liveLoadFailed: true,
     usedCache: false,
     accountLoadFailed: steamAccountLoadFailed,
+    steamId,
   }
 }
