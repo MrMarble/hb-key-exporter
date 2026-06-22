@@ -1,12 +1,28 @@
-import { onCleanup, onMount, type Setter } from 'solid-js'
-import { redeem, fetchRedeemedDate, setRedeemedDate, type Product } from '../util'
+import { onCleanup, onMount, type Accessor, type Setter } from 'solid-js'
+import {
+  clearSteamSupportNotice,
+  redeem,
+  fetchRedeemedDate,
+  setRedeemedDate,
+  showErrorToast,
+  showFlashToast,
+  showSteamSupportNotice,
+  type Product,
+} from '../util'
 import DataTable, { type Api } from 'datatables.net-dt'
 import { hm } from '@violentmonkey/dom'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
-import { showToast } from '@violentmonkey/ui'
 
-export function Table({ products, setDt }: { products: Product[]; setDt: Setter<Api<Product>> }) {
+export function Table({
+  products,
+  steamId,
+  setDt,
+}: {
+  products: Product[]
+  steamId: Accessor<string | null>
+  setDt: Setter<Api<Product>>
+}) {
   let tableRef!: HTMLTableElement
 
   onMount(() => {
@@ -36,6 +52,31 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
         class: `${styles.yes_no_badge} ${value === 'Yes' ? styles.yes_badge : noClassName}`,
         innerText: value,
       }) as unknown as string
+    }
+
+    const displayTooltipDash = (title: string, className?: string): string =>
+      hm('span', {
+        class: className,
+        title,
+        innerText: '-',
+      }) as unknown as string
+
+    const displayOwned = (data: unknown, type: string, row: Product): string => {
+      if (data) return displayYesNoBadge(data, type)
+      if (type !== 'display') return ''
+
+      if (row.key_type !== 'steam') {
+        return displayTooltipDash('Ownership detection is only available for Steam keys.')
+      }
+
+      if (!row.steam_app_id) {
+        return displayTooltipDash(
+          "Humble's API returned an empty Steam app ID.",
+          `${styles.yes_no_badge} ${styles.info_badge}`
+        )
+      }
+
+      return displayTooltipDash('Steam ownership data could not be loaded.')
     }
 
     const displayDateOnly = (iso: string): string =>
@@ -177,6 +218,11 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     setDt(
       () =>
         (dt = new DataTable<Product>(tableRef, {
+          pageLength: 10,
+          lengthMenu: [
+            [10, 25, 50, 100, 500, 1000, 5000, -1],
+            [10, 25, 50, 100, 500, '1,000', '5,000', 'All'],
+          ],
           columnDefs: [
             {
               targets: [7, 9],
@@ -202,7 +248,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   'i',
                   {
                     class: `hb hb-key hb-${data}`,
-                    onclick: () => showToast(JSON.stringify(row, null, 2)),
+                    onclick: () => showFlashToast(JSON.stringify(row, null, 2)),
                   },
                   hm('span', { class: 'hidden', innerText: String(data) })
                 )
@@ -243,7 +289,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               },
             },
             {
-              title: 'Gift',
+              title: 'Format',
               data: 'type',
               type: 'string-utf8',
               render: displayDash,
@@ -255,17 +301,17 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
               render: (data, type) => displayYesNoBadge(data, type, styles.warning_badge),
             },
             {
-              title: 'Owned',
+              title: `Owned <span class="${styles.header_note}" title="Relies on the Steam app ID returned by Humble's API and may be inaccurate for package/sub keys."></span>`,
               data: 'owned',
               type: 'string-utf8',
-              render: displayYesNoBadge,
+              render: displayOwned,
             },
             { title: 'Purchased', data: 'created', type: 'date' },
             {
               // ---------------------------------------------------------------
               // "Redeemed" column — Steam Support app-level data
               // ---------------------------------------------------------------
-              title: 'Redeemed',
+              title: `Redeemed <span class="${styles.header_note}" title="Uses Steam Support app ID data and may be inaccurate for package/sub keys."></span>`,
               data: null,
               type: 'date',
               className: 'dt-right',
@@ -276,13 +322,16 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                   return row.redeemed_date?.iso ?? ''
                 }
 
+                // ── Not owned on this Steam account — nothing to show ───────────────────
+                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
+
                 // ── Already fetched ─────────────────────────────────────────
                 if (row.redeemed_date) {
                   const { label, iso } = row.redeemed_date
                   return hm(
                     'a',
                     {
-                      href: steamSupportUrl(row.steam_app_id!),
+                      href: steamSupportUrl(row.steam_app_id),
                       target: '_blank',
                       title: 'Open Steam Support page',
                     },
@@ -295,9 +344,6 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                     ]
                   ) as unknown as string
                 }
-
-                // ── Not owned on this Steam account — nothing to show ───────────────────
-                if (!row.steam_app_id || row.owned !== 'Yes') return '-'
 
                 // ── Not yet fetched: show a fetch button ────────────────────────────────
                 const fetchBtn = hm(
@@ -315,7 +361,8 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         if (result) {
                           const appId = row.steam_app_id!
 
-                          setRedeemedDate(appId, result)
+                          setRedeemedDate(appId, result, steamId())
+                          clearSteamSupportNotice(appId)
 
                           for (const product of products) {
                             if (product.steam_app_id === appId) {
@@ -323,14 +370,17 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                             }
                           }
 
-                          dt.rows().invalidate('data').draw('page')
+                          dt.rows((_idx, product) => product.steam_app_id === appId)
+                            .invalidate('data')
+                            .draw('page')
                         } else {
-                          showToast('No redeemed date found on Steam Support page')
+                          showSteamSupportNotice(row.steam_app_id!)
                           target.disabled = false
                           target.innerHTML = '<i class="hb hb-clock"></i>'
                         }
                       } catch (err) {
-                        showToast(err instanceof Error ? err.message : 'Failed to fetch')
+                        showSteamSupportNotice(row.steam_app_id!)
+                        showErrorToast(err, 'Failed to fetch')
                         target.disabled = false
                         target.innerHTML = '<i class="hb hb-clock"></i>'
                       }
@@ -376,7 +426,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                         type: 'button',
                         onclick: () => {
                           navigator.clipboard.writeText(row.redeemed_key_val)
-                          showToast('Copied to clipboard')
+                          showFlashToast('Copied to clipboard')
                         },
                       },
                       hm('i', { class: 'hb hb-key hb-clipboard' })
@@ -423,9 +473,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                           try {
                             const key = await redeem(row)
                             await navigator.clipboard.writeText(key)
-                            showToast('Key copied to clipboard')
+                            showFlashToast('Key copied to clipboard')
                           } catch (error) {
-                            showToast(error instanceof Error ? error.message : String(error))
+                            showErrorToast(error)
                           }
                         },
                       },
@@ -440,9 +490,9 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
                           try {
                             const link = await redeem(row, true)
                             await navigator.clipboard.writeText(link)
-                            showToast('Link copied to clipboard')
+                            showFlashToast('Link copied to clipboard')
                           } catch (error) {
-                            showToast(error instanceof Error ? error.message : String(error))
+                            showErrorToast(error)
                           }
                         },
                       },
@@ -524,7 +574,7 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
     const warnings: WarningRule[] = [
       {
         element: makeWarning(
-          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because only one app ID is returned by Humble\'s API. This column may also contain many null values.'
+          '⚠️ "Owned" column: Keys containing multiple app IDs/content can incorrectly appear owned because Humble\'s API does not return package IDs. This column shows a dash when ownership detection is not supported, Humble\'s API does not provide a Steam app ID, or Steam ownership data cannot be loaded.'
         ),
         show: (selectedColumns) => selectedColumns.includes('Owned'),
       },
@@ -568,6 +618,8 @@ export function Table({ products, setDt }: { products: Product[]; setDt: Setter<
       searchBuilderRoot?.removeEventListener('change', refreshWarnings)
       observer?.disconnect()
       for (const warning of warnings) warning.element.remove()
+
+      dt.destroy()
     })
   })
   console.debug('Table Loaded')

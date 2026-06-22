@@ -1,6 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js'
-import { redeem, type Product } from '../util'
-import { showToast } from '@violentmonkey/ui'
+import { redeem, showFlashToast, type Product } from '../util'
 // @ts-expect-error missing types
 import styles from '../style.module.css'
 import type { Api } from 'datatables.net-dt'
@@ -112,7 +111,7 @@ export function Actions({ dt }: { dt: Accessor<Api<Product>> }) {
         break
     }
     setExporting(false)
-    showToast('Exported to clipboard')
+    showFlashToast('Exported to clipboard')
   }
 
   return (

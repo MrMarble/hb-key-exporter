@@ -10,6 +10,19 @@ tr.expired {
   white-space: nowrap;
 }
 
+.header_note {
+  margin-left: 3px;
+  color: #2f6f9f;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 1px;
+  cursor: help;
+}
+
+.header_note::after {
+  content: 'ⓘ';
+}
+
 .select {
   padding: 5px 30px 5px 10px;
   border: 1px solid #ccc;
@@ -66,8 +79,13 @@ tr.expired {
 }
 
 .no_badge {
-  background-color: #e2e3e5;
-  color: #41464b;
+  background-color: #cfd4da;
+  color: #212529;
+}
+
+.info_badge {
+  background-color: #b8d4ec;
+  color: #0f3048;
 }
 
 .warning_badge {
