@@ -19,6 +19,10 @@ tr.expired {
   cursor: help;
 }
 
+.header_note::after {
+  content: 'ⓘ';
+}
+
 .select {
   padding: 5px 30px 5px 10px;
   border: 1px solid #ccc;
