@@ -1,3 +1,12 @@
+# [0.6.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.5.0...v0.6.0) (2026-07-02)
+
+
+### Features
+
+* http server for dev script. ([#39](https://github.com/MrMarble/hb-key-exporter/issues/39)) ([e73694d](https://github.com/MrMarble/hb-key-exporter/commit/e73694d5ad2483c5a48bd17f2794bd35a4e2fd0f))
+* improve redeemed date tracking and table behavior ([#38](https://github.com/MrMarble/hb-key-exporter/issues/38)) ([3279b60](https://github.com/MrMarble/hb-key-exporter/commit/3279b60d8d81c17287f4e0b59ead93c88a5cc1bc))
+* **table:** improve Steam data integration, toasts, and UX ([#42](https://github.com/MrMarble/hb-key-exporter/issues/42)) ([f748086](https://github.com/MrMarble/hb-key-exporter/commit/f748086c5bc47e823e19cf6360f86ab1206de0b1))
+
 # [0.5.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.2...v0.5.0) (2026-05-21)
 
 
