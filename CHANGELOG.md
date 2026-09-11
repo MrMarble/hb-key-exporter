@@ -28,6 +28,14 @@
 
 - Add `purchase date` column ([#34](https://github.com/MrMarble/hb-key-exporter/issues/34)) ([dba9f33](https://github.com/MrMarble/hb-key-exporter/commit/dba9f337876ac4fd4f72b4359041e80e211336d6))
 
+## [0.9.1](https://github.com/MrMarble/hb-key-exporter/compare/v0.9.0...v0.9.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** empty package-name so release-please tags merged release PRs ([#72](https://github.com/MrMarble/hb-key-exporter/issues/72)) ([6f793c4](https://github.com/MrMarble/hb-key-exporter/commit/6f793c4d78158e184de96dbc125181a54bef9fd9))
+* **ci:** let release-please tag the merged release PR ([#71](https://github.com/MrMarble/hb-key-exporter/issues/71)) ([943f191](https://github.com/MrMarble/hb-key-exporter/commit/943f19174082ac5c30f6940ca9ec5e1fc322576f))
+
 ## [0.9.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.8.0...v0.9.0) (2026-09-11)
 
 
