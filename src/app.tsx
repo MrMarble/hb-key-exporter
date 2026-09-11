@@ -3,6 +3,7 @@ import {
   clearSteamAccountNotice,
   clearSteamNotices,
   clearSteamOwnedNotice,
+  countOrders,
   fetchSteamAccountId,
   getProducts,
   loadOrders,
@@ -26,6 +27,10 @@ type PendingKeylessRedemption = {
   resolve: (confirmed: boolean) => void
 }
 
+const ORDER_POLL_INTERVAL_MS = 500
+/** How long the order count must hold steady before loading counts as done. */
+const ORDER_SETTLE_DELAY_MS = 3000
+
 export function App() {
   const [open, setOpen] = createSignal(false)
   const [pendingSteamOwnedNotice, setPendingSteamOwnedNotice] = createSignal(false)
@@ -40,7 +45,12 @@ export function App() {
     createSignal<PendingKeylessRedemption | null>(null)
   const [keylessRedemptionProcessing, setKeylessRedemptionProcessing] = createSignal(false)
 
+  const initialOrderCount = countOrders()
+  const [orderCount, setOrderCount] = createSignal(initialOrderCount)
+  const [ordersSettled, setOrdersSettled] = createSignal(false)
+
   let checkSteamAccountTimer: number | undefined
+  let orderPollTimer: number | undefined
   let refreshInFlight: Promise<void> | null = null
   const pendingSteamPageRefreshes = new Set<Promise<void>>()
 
@@ -217,9 +227,36 @@ export function App() {
     window.addEventListener('focus', checkSteamAccountChanged)
     document.addEventListener('visibilitychange', checkSteamAccountChangedAfterVisibility)
 
+    // Humble keeps writing orders into localStorage for a while after page
+    // load. Poll until the count stops moving, then refresh once so the table
+    // reflects every order instead of whatever happened to be cached on mount.
+    let lastCount = countOrders()
+    let lastChangeAt = Date.now()
+
+    orderPollTimer = window.setInterval(() => {
+      const count = countOrders()
+      setOrderCount(count)
+
+      if (count !== lastCount) {
+        lastCount = count
+        lastChangeAt = Date.now()
+        return
+      }
+
+      if (Date.now() - lastChangeAt < ORDER_SETTLE_DELAY_MS) return
+
+      window.clearInterval(orderPollTimer)
+      orderPollTimer = undefined
+      setOrdersSettled(true)
+
+      // Only worth refetching if orders showed up after the initial load.
+      if (count > initialOrderCount) void refreshProducts()
+    }, ORDER_POLL_INTERVAL_MS)
+
     onCleanup(() => {
       pendingKeylessRedemption()?.resolve(false)
       window.clearTimeout(checkSteamAccountTimer)
+      window.clearInterval(orderPollTimer)
       window.removeEventListener('focus', checkSteamAccountChanged)
       document.removeEventListener('visibilitychange', checkSteamAccountChangedAfterVisibility)
     })
@@ -239,7 +276,19 @@ export function App() {
       </button>
 
       <div classList={{ hidden: !open() }}>
-        <div style={{ display: 'flex', 'justify-content': 'end', 'align-items': 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            'justify-content': 'end',
+            'align-items': 'center',
+            gap: '10px',
+          }}
+        >
+          <span>
+            {ordersSettled()
+              ? `${orderCount()} order${orderCount() === 1 ? '' : 's'} loaded`
+              : `Loading orders… (${orderCount()})`}
+          </span>
           <Refresh refresh={refreshProducts} />
         </div>
         <Show when={products()} keyed fallback={<p>Loading products...</p>}>

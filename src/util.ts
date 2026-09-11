@@ -290,6 +290,17 @@ export const loadOrders = () =>
     .map((key) => JSON.parse(LZString.decompressFromUTF16(localStorage.getItem(key))) as Order)
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
+/**
+ * Cheap count of cached orders in localStorage.
+ *
+ * Humble streams orders into localStorage progressively after the keys page
+ * loads, so this is polled to tell whether that background fill is still
+ * running. It only counts keys and never decompresses them, which keeps it
+ * safe to call on a short interval.
+ */
+export const countOrders = () =>
+  Object.keys(localStorage).filter((key) => key.startsWith('v2|')).length
+
 export const getProducts = (
   orders: Order[],
   ownedApps: number[] | null,
