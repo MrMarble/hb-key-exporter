@@ -3,7 +3,7 @@ import {
   clearSteamAccountNotice,
   clearSteamNotices,
   clearSteamOwnedNotice,
-  countOrders,
+  countCachedOrders,
   fetchSteamAccountId,
   getProducts,
   loadOrders,
@@ -45,8 +45,11 @@ export function App() {
     createSignal<PendingKeylessRedemption | null>(null)
   const [keylessRedemptionProcessing, setKeylessRedemptionProcessing] = createSignal(false)
 
-  const initialOrderCount = countOrders()
-  const [orderCount, setOrderCount] = createSignal(initialOrderCount)
+  const initialCachedOrderCount = countCachedOrders()
+  // Raw localStorage entries, used only to show that orders are still arriving.
+  const [cachedOrderCount, setCachedOrderCount] = createSignal(initialCachedOrderCount)
+  // Orders that actually carry keys, i.e. the ones behind the table.
+  const [orderCount, setOrderCount] = createSignal<number | null>(null)
   const [ordersSettled, setOrdersSettled] = createSignal(false)
 
   let checkSteamAccountTimer: number | undefined
@@ -150,6 +153,8 @@ export function App() {
         clearSteamOwnedNotice()
       }
 
+      setOrderCount(orders.length)
+
       console.debug(
         'Loaded',
         orders.length,
@@ -230,12 +235,12 @@ export function App() {
     // Humble keeps writing orders into localStorage for a while after page
     // load. Poll until the count stops moving, then refresh once so the table
     // reflects every order instead of whatever happened to be cached on mount.
-    let lastCount = countOrders()
+    let lastCount = countCachedOrders()
     let lastChangeAt = Date.now()
 
     orderPollTimer = window.setInterval(() => {
-      const count = countOrders()
-      setOrderCount(count)
+      const count = countCachedOrders()
+      setCachedOrderCount(count)
 
       if (count !== lastCount) {
         lastCount = count
@@ -250,7 +255,7 @@ export function App() {
       setOrdersSettled(true)
 
       // Only worth refetching if orders showed up after the initial load.
-      if (count > initialOrderCount) void refreshProducts()
+      if (count > initialCachedOrderCount) void refreshProducts()
     }, ORDER_POLL_INTERVAL_MS)
 
     onCleanup(() => {
@@ -285,9 +290,9 @@ export function App() {
           }}
         >
           <span>
-            {ordersSettled()
+            {ordersSettled() && orderCount() !== null
               ? `${orderCount()} order${orderCount() === 1 ? '' : 's'} loaded`
-              : `Loading orders… (${orderCount()})`}
+              : `Loading orders… (${cachedOrderCount()} cached)`}
           </span>
           <Refresh refresh={refreshProducts} />
         </div>

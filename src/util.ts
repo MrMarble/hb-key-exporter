@@ -291,14 +291,16 @@ export const loadOrders = () =>
     .filter((order) => order?.tpkd_dict?.all_tpks?.length)
 
 /**
- * Cheap count of cached orders in localStorage.
+ * Number of cached orders still arriving from Humble.
  *
  * Humble streams orders into localStorage progressively after the keys page
  * loads, so this is polled to tell whether that background fill is still
- * running. It only counts keys and never decompresses them, which keeps it
- * safe to call on a short interval.
+ * running. It counts raw `v2|` entries without decompressing them, which keeps
+ * it cheap enough for an interval, but means it includes orders that carry no
+ * keys. Use it to detect change, not to report a total — `loadOrders()` is the
+ * number that matches the table.
  */
-export const countOrders = () =>
+export const countCachedOrders = () =>
   Object.keys(localStorage).filter((key) => key.startsWith('v2|')).length
 
 export const getProducts = (
