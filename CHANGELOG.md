@@ -1,3 +1,9 @@
+# [0.8.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.7.0...v0.8.0) (2026-09-11)
+
+### Features
+
+- add downloadable exports and improve CSV and table UX ([#48](https://github.com/MrMarble/hb-key-exporter/issues/48)) ([73f7f14](https://github.com/MrMarble/hb-key-exporter/commit/73f7f1469892009a8629dd86024e54ddafa692ed))
+
 # [0.7.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.6.0...v0.7.0) (2026-08-20)
 
 ### Features
