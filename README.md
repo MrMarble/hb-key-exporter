@@ -34,6 +34,39 @@ Go to Humble Bundle [keys page](https://www.humblebundle.com/home/keys), open th
 > [!NOTE]
 > You need to be signed in to Steam for some of the features to work, such as showing purchase dates and claiming keys.
 
+## Contributing
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/). A
+`commit-msg` git hook runs [commitlint](https://commitlint.js.org/) and rejects
+messages that don't parse:
+
+```
+feat: add CSV column chooser
+fix(table): correct expiry sort order
+feat!: drop support for Node 18
+```
+
+`feat:` bumps the minor version, `fix:` the patch version, and a `!` suffix (or a
+`BREAKING CHANGE:` footer) bumps the major. Types other than `feat`/`fix`/`perf`/
+`revert` are kept out of the changelog.
+
+## Releasing
+
+Releases are automated with
+[release-please](https://github.com/googleapis/release-please-action). Merging
+conventional commits to `main` keeps a "chore: release vX.Y.Z" pull request up to
+date with the next version and the generated `CHANGELOG.md`.
+
+Merging that release PR bumps `package.json`, updates the changelog, and pushes
+the `vX.Y.Z` tag, which in turn triggers `publish.yml` to build and attach
+`dist/hb-key-exporter.user.js` to the GitHub release. No manual version bumping
+or tagging is required.
+
+> [!NOTE]
+> The workflow uses a `RELEASE_PLEASE_TOKEN` repository secret (a PAT). The
+> default `GITHUB_TOKEN` cannot be used here because tags it creates do not
+> trigger `publish.yml`.
+
 ## Troubleshooting
 
 Humble bundle will load all your keys into the `localStorage` of your browser. This userscript will read the keys from there. If you have a lot of keys, it may take a while to load them all the first time, leave the page open for a minute or two, you can refresh the list by clicking the `Refresh` button on the right or just reload the page.

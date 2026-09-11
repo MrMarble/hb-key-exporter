@@ -16,8 +16,7 @@
     "lint:fix": "eslint --fix",
     "ci": "run-s lint",
     "build:js": "rollup -c",
-    "build": "cross-env NODE_ENV=production run-s ci clean build:js",
-    "version": "conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md"
+    "build": "cross-env NODE_ENV=production run-s ci clean build:js"
   },
   "author": {
     "name": "MrMarble"
@@ -27,6 +26,8 @@
     "@babel/plugin-transform-runtime": "^7.27.1",
     "@babel/preset-env": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^9.26.0",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^28.0.3",
@@ -35,8 +36,6 @@
     "@rollup/plugin-replace": "^6.0.2",
     "@violentmonkey/types": "^0.2.1",
     "babel-preset-solid": "^1.9.6",
-    "conventional-changelog": "^7.2.0",
-    "conventional-changelog-angular": "^8.3.1",
     "cross-env": "^7.0.3",
     "datatables.net-dt": "^2.3.0",
     "del-cli": "^6.0.0",

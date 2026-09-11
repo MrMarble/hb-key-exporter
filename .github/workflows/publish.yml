@@ -14,6 +14,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      # release-please bumps package.json and pushes the tag in one commit, so
+      # these agree by construction. Kept as a guard for hand-pushed tags.
       - name: Fail if tag != package.json version
         run: |
           set -euo pipefail
