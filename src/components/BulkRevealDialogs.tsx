@@ -171,6 +171,7 @@ export function BulkRevealConfirmation({
   destination,
   processing,
   progress,
+  status,
   onCancel,
   onConfirm,
 }: {
@@ -179,6 +180,8 @@ export function BulkRevealConfirmation({
   destination: ExportDestination
   processing: Accessor<boolean>
   progress: Accessor<number>
+  /** Current phase, e.g. the per-month Humble Choice preparation step. */
+  status?: Accessor<string>
   onCancel: () => void
   onConfirm: () => void
 }) {
@@ -267,7 +270,7 @@ export function BulkRevealConfirmation({
           <Show when={processing()}>
             <div class={styles.modal_progress}>
               <div class={styles.modal_progress_header}>
-                <span>{gift ? 'Creating gift links' : 'Revealing keys'}</span>
+                <span>{status?.() || (gift ? 'Creating gift links' : 'Revealing keys')}</span>
                 <strong>
                   {progress()} of {count}
                 </strong>

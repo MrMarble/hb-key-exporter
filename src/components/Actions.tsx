@@ -71,6 +71,9 @@ const claimProducts = async (
   // the reveal loop below, which will surface Humble's own error message.
   const choiceFailures = await prepareChoiceProducts(products, onStatus)
 
+  // Hand the header back to the reveal phase now that choosing is done.
+  onStatus?.('')
+
   await forEachConcurrent(products, CLAIM_CONCURRENCY, async (product, index) => {
     const choiceError = choiceFailures.get(product)
 
@@ -199,6 +202,7 @@ export function Actions({
   const exporting = (): boolean => exportingDestination() !== null
   const [bulkRevealProcessing, setBulkRevealProcessing] = createSignal(false)
   const [bulkRevealProgress, setBulkRevealProgress] = createSignal(0)
+  const [bulkRevealStatus, setBulkRevealStatus] = createSignal('')
   const [csvDelimiterPreset, setCsvDelimiterPreset] = createSignal<CsvDelimiterPreset>('comma')
   const [customCsvDelimiter, setCustomCsvDelimiter] = createSignal('')
   const [csvExportPreferences, setCsvExportPreferences] = createSignal<CsvExportPreferences>(
@@ -254,6 +258,7 @@ export function Actions({
   ): Promise<boolean> => {
     setBulkRevealProcessing(false)
     setBulkRevealProgress(0)
+    setBulkRevealStatus('')
     return new Promise((resolve) => setPendingConfirmation({ plan, gift, destination, resolve }))
   }
 
@@ -336,7 +341,8 @@ export function Actions({
         const { successes, failures } = await claimProducts(
           currentClaimable,
           claimAsGift,
-          setBulkRevealProgress
+          setBulkRevealProgress,
+          setBulkRevealStatus
         )
 
         // A refresh can also finish while reveal requests are in flight. Resolve once more, then
@@ -587,6 +593,7 @@ export function Actions({
             destination={pending.destination}
             processing={bulkRevealProcessing}
             progress={bulkRevealProgress}
+            status={bulkRevealStatus}
             onCancel={cancelConfirmation}
             onConfirm={confirmReveal}
           />
