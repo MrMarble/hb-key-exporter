@@ -25,6 +25,7 @@
       ]
     }
   },
-  "pull-request-title-pattern": "chore: release v${version}",
+  "pull-request-title-pattern": "chore: release ${version}",
+  "group-pull-request-title-pattern": "chore: release ${version}",
   "separate-pull-requests": false
 }
