@@ -1,0 +1,48 @@
+# Code owners for release-critical surface.
+#
+# How this works: CODEOWNERS is LAST-MATCH-WINS, and paths that match no rule
+# have NO owner. Combined with "Require review from Code Owners" on main, that
+# means:
+#
+#   - A PR touching only unowned paths (e.g. src/, README.md) needs just the
+#     normal 1 approval -- any maintainer can review and merge it.
+#   - A PR touching an owned path additionally requires @MrMarble's approval.
+#
+# Nobody else is listed on purpose. Listing a second owner for "the rest" would
+# make THEIR review mandatory on ordinary PRs, including PRs authored by
+# @MrMarble -- the opposite of the intent.
+#
+# The threat model: malicious code may reach main, but a tagged release cannot
+# be cut without @MrMarble approving. Every path below is either (a) a file
+# release-please rewrites on each release PR, so owning it gates releases, or
+# (b) build/CI surface that could inject into the published artifact or
+# redirect the update channel WITHOUT appearing in a release PR diff.
+#
+# NOTE: reviewing the release PR diff alone is NOT sufficient -- it is three
+# files of version bumps. Review the accumulated main diff since the previous
+# tag; the release PR body lists every included commit.
+
+# CI, workflows, dependabot -- and this file itself, so ownership rules cannot
+# be edited without @MrMarble. publish.yml builds and uploads the artifact and
+# holds RELEASE_PLEASE_TOKEN.
+/.github/                       @MrMarble
+
+# Written by release-please on every release PR: these two are the gate.
+# Never hand-edited, so they fire on release PRs and essentially nothing else.
+/CHANGELOG.md                   @MrMarble
+/.release-please-manifest.json  @MrMarble
+
+# Controls HOW releases are cut: draft, force-tag-creation, changelog-sections,
+# title patterns. Flipping "draft" or un-hiding a section changes release
+# behaviour without touching any release PR.
+/release-please-config.json     @MrMarble
+
+# Build surface that lands in the published .user.js.
+# package.json carries the version AND `downloadURL`, which rollup injects as
+# the userscript's @downloadURL -- changing it hijacks auto-update for every
+# existing user. It also gates `scripts`, which run in CI.
+/package.json                   @MrMarble
+/pnpm-lock.yaml                 @MrMarble
+/rollup.config.mjs              @MrMarble
+/babel.config.cjs               @MrMarble
+/src/meta.js                    @MrMarble

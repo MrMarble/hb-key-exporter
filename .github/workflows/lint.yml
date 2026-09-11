@@ -29,7 +29,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
-      - run: pnpm install
+      # --ignore-scripts: this job runs code from untrusted pull requests. It has
+      # no secrets and only `contents: read`, but blocking lifecycle scripts
+      # keeps a malicious dependency from executing in CI at all. Lint/build do
+      # not need them.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Lint pull request title
         if: github.event_name == 'pull_request'
         env:

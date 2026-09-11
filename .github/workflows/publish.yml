@@ -36,8 +36,14 @@ jobs:
         with:
           node-version: 24.x
           cache: 'pnpm'
+      # --ignore-scripts: this job holds a `contents: write` token and produces
+      # the artifact users auto-update to, so a dependency lifecycle script here
+      # would run with write access and could tamper with the build AFTER the
+      # release PR was reviewed -- routing around the CODEOWNERS release gate.
+      # Nothing in this build needs lifecycle scripts (husky's `prepare` is only
+      # wanted on developer clones), so they are blocked outright.
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build
         run: pnpm build
       # release-please creates the release as a draft (draft: true) and pushes
