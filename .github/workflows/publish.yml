@@ -40,6 +40,13 @@ jobs:
         run: pnpm install
       - name: Build
         run: pnpm build
+      # release-please creates the release as a draft (draft: true) and pushes
+      # the tag itself (force-tag-creation), which is what triggers this run.
+      # Uploading to a *published* release is rejected once the repo has
+      # immutable releases enabled, so the asset has to go on while it is still
+      # a draft. Omitting `draft` here makes this action publish the draft after
+      # the upload succeeds -- so the release only goes live with its asset
+      # attached, and a failed build leaves a draft rather than an empty release.
       - name: Release
         uses: softprops/action-gh-release@v3
         if: github.ref_type == 'tag'

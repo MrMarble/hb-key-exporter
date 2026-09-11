@@ -9,8 +9,9 @@
       "include-component-in-tag": false,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
-      "draft": false,
+      "draft": true,
       "prerelease": false,
+      "force-tag-creation": true,
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
