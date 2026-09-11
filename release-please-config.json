@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "component": "",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
       "include-component-in-tag": false,
