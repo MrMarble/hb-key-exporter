@@ -28,6 +28,20 @@
 
 - Add `purchase date` column ([#34](https://github.com/MrMarble/hb-key-exporter/issues/34)) ([dba9f33](https://github.com/MrMarble/hb-key-exporter/commit/dba9f337876ac4fd4f72b4359041e80e211336d6))
 
+## [0.9.0](https://github.com/MrMarble/hb-key-exporter/compare/v0.8.0...v0.9.0) (2026-09-11)
+
+
+### Features
+
+* show order loading progress and refresh when complete ([#67](https://github.com/MrMarble/hb-key-exporter/issues/67)) ([83acfc5](https://github.com/MrMarble/hb-key-exporter/commit/83acfc5f88f9531d7776463b6425c4f2ec1e79b6))
+* skip permanently failed keys on bulk reveal ([#55](https://github.com/MrMarble/hb-key-exporter/issues/55)) ([4dc2941](https://github.com/MrMarble/hb-key-exporter/commit/4dc2941d879956a9db517f0b0b1a27f264f7720f))
+
+
+### Bug Fixes
+
+* improve non-retryable reveal handling ([#69](https://github.com/MrMarble/hb-key-exporter/issues/69)) ([96196ef](https://github.com/MrMarble/hb-key-exporter/commit/96196efeb291391b8463e0025556108b2906c8b3))
+* report the order count that matches the table ([#70](https://github.com/MrMarble/hb-key-exporter/issues/70)) ([baef86e](https://github.com/MrMarble/hb-key-exporter/commit/baef86e150a20f2fabdfcbfe6fd7cde984a40efd))
+
 ## [0.4.2](https://github.com/MrMarble/hb-key-exporter/compare/v0.4.1...v0.4.2) (2026-05-21)
 
 ### Bug Fixes
