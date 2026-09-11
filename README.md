@@ -36,6 +36,23 @@ Go to Humble Bundle [keys page](https://www.humblebundle.com/home/keys), open th
 
 ## Contributing
 
+### Build
+
+The toolchain is pinned in `mise.toml` (Node 24, pnpm 10). With
+[mise](https://mise.jdx.dev/) installed, `mise install` provisions both;
+otherwise use [pnpm](https://pnpm.io/) with Node >= 20.18.0.
+
+```bash
+pnpm install
+pnpm build
+```
+
+The bundled userscript is written to `dist/hb-key-exporter.user.js`. Note that
+`pnpm build` runs the linter first and will fail before bundling if it reports
+errors.
+
+### Commit messages
+
 Commits must follow [Conventional Commits](https://www.conventionalcommits.org/). A
 `commit-msg` git hook runs [commitlint](https://commitlint.js.org/) and rejects
 messages that don't parse:
