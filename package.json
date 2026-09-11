@@ -37,7 +37,7 @@
     "@violentmonkey/types": "^0.2.1",
     "babel-preset-solid": "^1.9.6",
     "cross-env": "^7.0.3",
-    "datatables.net-dt": "^2.3.0",
+    "datatables.net-dt": "^3.0.3",
     "del-cli": "^6.0.0",
     "eslint": "^9.26.0",
     "eslint-config-prettier": "^10.1.2",
