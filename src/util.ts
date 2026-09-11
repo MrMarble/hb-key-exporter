@@ -351,8 +351,25 @@ type RedeemResponse = {
   success?: boolean
   error_msg?: string
   error?: string
+  redeem_retryable?: boolean
   giftkey?: unknown
   key?: unknown
+}
+
+/**
+ * A failed reveal. `permanent` is true when Humble explicitly reported the
+ * failure as non-retryable (`redeem_retryable: false`), which is how expired
+ * keys are signalled. Retrying those always fails the same way, so callers can
+ * use this to skip them instead of re-requesting on every bulk reveal.
+ */
+export class RedeemError extends Error {
+  readonly permanent: boolean
+
+  constructor(message: string, permanent: boolean) {
+    super(message)
+    this.name = 'RedeemError'
+    this.permanent = permanent
+  }
 }
 
 export const redeem = async (product: Product, gift = false): Promise<RedeemedKeyValue> => {
@@ -384,8 +401,9 @@ export const redeem = async (product: Product, gift = false): Promise<RedeemedKe
   }
 
   if (!response.ok || !data.success) {
-    throw new Error(
-      data.error_msg || data.error || `Failed to reveal key (HTTP ${response.status})`
+    throw new RedeemError(
+      data.error_msg || data.error || `Failed to reveal key (HTTP ${response.status})`,
+      data.redeem_retryable === false
     )
   }
 

@@ -2,6 +2,8 @@ import { createSignal, onCleanup, Show, type Accessor } from 'solid-js'
 import type { Api } from 'datatables.net-dt'
 import {
   createClaimPlan,
+  hasPermanentlyFailed,
+  markPermanentlyFailed,
   type ClaimFailure,
   type ClaimPlan,
   type ClaimReport,
@@ -28,7 +30,14 @@ import {
   saveCsvExportPreferences,
   type CsvExportPreferences,
 } from '../csv-export'
-import { copyToClipboard, redeem, showErrorToast, showFlashToast, type Product } from '../util'
+import {
+  copyToClipboard,
+  redeem,
+  RedeemError,
+  showErrorToast,
+  showFlashToast,
+  type Product,
+} from '../util'
 import { BulkRevealConfirmation, BulkRevealResults } from './BulkRevealDialogs'
 import { CsvExportSettingsDialog } from './CsvExportSettingsDialog'
 // @ts-expect-error missing types
@@ -63,6 +72,7 @@ const claimProducts = async (
       successes.push({ index, product })
     } catch (error) {
       console.error('Error redeeming product:', product.machine_name, error)
+      if (error instanceof RedeemError && error.permanent) markPermanentlyFailed(product)
       failures.push({ index, product, error })
     } finally {
       onProgress?.(++completed)
@@ -282,7 +292,10 @@ export function Actions({
       const initialSelection = table.rows({ search: 'applied' }).data().toArray() as Product[]
       const claimAsGift = claimType() === 'gift'
       const claimable = claim()
-        ? initialSelection.filter((product) => !hasRedeemedKeyValue(product.redeemed_key_val))
+        ? initialSelection.filter(
+            (product) =>
+              !hasRedeemedKeyValue(product.redeemed_key_val) && !hasPermanentlyFailed(product)
+          )
         : []
       let toExport = initialSelection
       let report: ClaimReport<Product> | null = null

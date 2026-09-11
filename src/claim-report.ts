@@ -48,6 +48,24 @@ export type ClaimResultGroup<T extends ClaimProduct = ClaimProduct> = {
   failures: ClaimFailure<T>[]
 }
 
+/**
+ * Products whose reveal failed permanently this session, keyed by the same
+ * identity used for product references. Humble keeps reporting these as
+ * non-retryable, so they are excluded from later bulk reveals rather than
+ * re-requested and re-failed every time.
+ */
+const permanentlyFailed = new Set<string>()
+
+const permanentFailureKey = (product: ClaimProduct): string =>
+  `${product.category_human_name}\u0000${product.human_name}\u0000${product.key_type}`
+
+export const markPermanentlyFailed = (product: ClaimProduct): void => {
+  permanentlyFailed.add(permanentFailureKey(product))
+}
+
+export const hasPermanentlyFailed = (product: ClaimProduct): boolean =>
+  permanentlyFailed.has(permanentFailureKey(product))
+
 export const getErrorMessage = (error: unknown): string =>
   error instanceof Error
     ? error.message || 'Failed to reveal key'
