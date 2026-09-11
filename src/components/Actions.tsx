@@ -10,6 +10,7 @@ import {
   type ClaimSuccess,
   type ExportDestination,
 } from '../claim-report'
+import { prepareChoiceProducts } from '../choices'
 import { forEachConcurrent } from '../concurrency'
 import { downloadTextFile, formatLocalTimestamp } from '../download'
 import {
@@ -55,7 +56,8 @@ type PendingConfirmation = {
 const claimProducts = async (
   products: Product[],
   gift: boolean,
-  onProgress?: (completed: number) => void
+  onProgress?: (completed: number) => void,
+  onStatus?: (message: string) => void
 ): Promise<{
   successes: ClaimSuccess<Product>[]
   failures: ClaimFailure<Product>[]
@@ -64,7 +66,21 @@ const claimProducts = async (
   const failures: ClaimFailure<Product>[] = []
   let completed = 0
 
+  // Choice keys do not exist until the month's games are chosen, so that has to
+  // happen before any redeem request. Failures here are reported per product by
+  // the reveal loop below, which will surface Humble's own error message.
+  const choiceFailures = await prepareChoiceProducts(products, onStatus)
+
   await forEachConcurrent(products, CLAIM_CONCURRENCY, async (product, index) => {
+    const choiceError = choiceFailures.get(product)
+
+    if (choiceError) {
+      console.error('Error preparing Choice product:', product.machine_name, choiceError)
+      failures.push({ index, product, error: choiceError })
+      onProgress?.(++completed)
+      return
+    }
+
     try {
       product.redeemed_key_val = await redeem(product, gift)
       product.type = gift ? 'Gift' : 'Key'

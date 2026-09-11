@@ -383,7 +383,10 @@ export class RedeemError extends Error {
   }
 }
 
-export const redeem = async (product: Product, gift = false): Promise<RedeemedKeyValue> => {
+/** The only fields `redeem` needs, so Choice keys can be revealed without a full Product. */
+export type RedeemTarget = Pick<Product, 'machine_name' | 'category_id' | 'keyindex'>
+
+export const redeem = async (product: RedeemTarget, gift = false): Promise<RedeemedKeyValue> => {
   if (product.keyindex == null) throw new Error('Missing Humble key index')
 
   const body = new URLSearchParams({
