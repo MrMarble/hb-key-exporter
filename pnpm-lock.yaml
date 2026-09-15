@@ -55,8 +55,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2(rollup@4.59.0)
       '@violentmonkey/types':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.3.4
+        version: 0.3.4
       babel-preset-solid:
         specifier: ^1.9.6
         version: 1.9.6(@babel/core@7.27.1(supports-color@7.2.0))
@@ -1236,8 +1236,8 @@ packages:
     resolution: {integrity: sha512-SFwUYH7gD/MQT79bK0HLc4J3YMbhj4DtfvWxW11BQIT77G39lxsy97GD3apinBOdC4QNXMoO5Xy8SqBKQR1cKg==}
     engines: {node: '>=20'}
 
-  '@violentmonkey/types@0.2.1':
-    resolution: {integrity: sha512-bugmnnPvHR/vM5qONp48X4+iJCdOkzDQ3RDhugU7EY0J3IRdeayyvXCPbJvSxezFEryMD7pAr4oLVfmoeV8nQg==}
+  '@violentmonkey/types@0.3.4':
+    resolution: {integrity: sha512-4i8/8X4Dk/py+RWTdfJbQcQGOx7COossGrw3uhrNegqwuAtC6pBXpJMKcdkPxxJklxmnWPaX4kvB5hypZfhY4g==}
 
   '@violentmonkey/ui@0.7.9':
     resolution: {integrity: sha512-Mh7oPRHi4nLuhG+4jtlZ9MZFlWkdCnnSaaNlQAtczkLW0hIteYP7b0ZjOAh38EjkPJGmVa4sMcSv37mhVVoWMw==}
@@ -3325,8 +3325,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  user-agent-data-types@0.4.2:
-    resolution: {integrity: sha512-jXep3kO/dGNmDOkbDa8ccp4QArgxR4I76m3QVcJ1aOF0B9toc+YtSXtX5gLdDTZXyWlpQYQrABr6L1L2GZOghw==}
+  user-agent-data-types@0.4.3:
+    resolution: {integrity: sha512-Dn3fjwVgeM363mx1sEgOpOp9NNqHBj6Gn68dFbV1WoTr3s05CijKdxfH6A3Q5uzXnYNB6vdAfs/1HWFpObc7EQ==}
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -4732,9 +4732,9 @@ snapshots:
       '@gera2ld/jsx-dom': 2.2.2
       solid-js: 1.9.6
 
-  '@violentmonkey/types@0.2.1':
+  '@violentmonkey/types@0.3.4':
     dependencies:
-      user-agent-data-types: 0.4.2
+      user-agent-data-types: 0.4.3
 
   '@violentmonkey/ui@0.7.9':
     dependencies:
@@ -6967,7 +6967,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  user-agent-data-types@0.4.2: {}
+  user-agent-data-types@0.4.3: {}
 
   util-deprecate@1.0.2: {}
 
