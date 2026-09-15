@@ -106,8 +106,8 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2(postcss@8.5.23)
       rollup-plugin-userscript:
-        specifier: ^0.3.7
-        version: 0.3.7(rollup@4.59.0)
+        specifier: ^1.1.0
+        version: 1.1.0(rollup@4.59.0)
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -2959,9 +2959,11 @@ packages:
     peerDependencies:
       postcss: 8.x
 
-  rollup-plugin-userscript@0.3.7:
-    resolution: {integrity: sha512-l2kdo2WlT4mOW+uV4SQOg8lQDmaJ7Nz5OormKdsJCgJTEoENVChATWnNYoFz4ckWODWY2z25bmtP3/yUVICxfg==}
+  rollup-plugin-userscript@1.1.0:
+    resolution: {integrity: sha512-0thtzYeFlYKWLAd1WsYES3QoLbzrgeHR5YY6flN6f+oGvAu+i6S653uypKOj6e6iH6VTQQuYFb/7s53s+xpWYw==}
     engines: {node: '>=18'}
+    peerDependencies:
+      rollup: ^4.0.0
 
   rollup-pluginutils@2.8.2:
     resolution: {integrity: sha512-EEp9NhnUkwY8aif6bxgovPHMoMoNr2FulJziTndpt5H9RdwC47GSGuII9XxpSdzVGM0GWrNPHV6ie1LTNJPaLQ==}
@@ -5394,7 +5396,7 @@ snapshots:
 
   estree-walker@3.0.3:
     dependencies:
-      '@types/estree': 1.0.8
+      '@types/estree': 1.0.9
 
   esutils@2.0.3: {}
 
@@ -5810,7 +5812,7 @@ snapshots:
 
   is-reference@3.0.3:
     dependencies:
-      '@types/estree': 1.0.8
+      '@types/estree': 1.0.9
 
   is-regex@1.2.1:
     dependencies:
@@ -6536,15 +6538,13 @@ snapshots:
     transitivePeerDependencies:
       - ts-node
 
-  rollup-plugin-userscript@0.3.7(rollup@4.59.0):
+  rollup-plugin-userscript@1.1.0(rollup@4.59.0):
     dependencies:
-      '@babel/runtime': 7.27.1
-      '@rollup/pluginutils': 5.1.4(rollup@4.59.0)
+      '@rollup/pluginutils': 5.4.0(rollup@4.59.0)
       estree-walker: 3.0.3
       is-reference: 3.0.3
-      magic-string: 0.30.17
-    transitivePeerDependencies:
-      - rollup
+      magic-string: 0.30.21
+      rollup: 4.59.0
 
   rollup-pluginutils@2.8.2:
     dependencies:
