@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@babel/runtime':
-        specifier: ^7.27.1
-        version: 7.27.1
+        specifier: ^8.0.5
+        version: 8.0.5
       '@violentmonkey/dom':
         specifier: ^2.2.1
         version: 2.2.1
@@ -709,6 +709,9 @@ packages:
   '@babel/runtime@7.27.1':
     resolution: {integrity: sha512-1x3D2xEk2fRo3PAhwQwu5UubzgiVWSXTBfWpVd2Mx2AzRqJuDJCsgaDVZ7HB5iGzDW1Hl1sWN2mFyKjmR9uAog==}
     engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@8.0.5':
+    resolution: {integrity: sha512-7NK+Lz3spQ52XsUGTxIEVU4jYN2/dIaX8sTxRFAUtYmttYZnVh3aehiihv+/Gb7+duMNHl2OrFcBQRyOHScxpg==}
 
   '@babel/template@7.27.1':
     resolution: {integrity: sha512-Fyo3ghWMqkHHpHQCoBs2VnYjR4iWFFjguTDEqA5WgZDOrFesVjMhMM2FSqTKSoUSDO1VQtavj8NFpdRBEvJTtg==}
@@ -4172,6 +4175,8 @@ snapshots:
       - supports-color
 
   '@babel/runtime@7.27.1': {}
+
+  '@babel/runtime@8.0.5': {}
 
   '@babel/template@7.27.1':
     dependencies:
